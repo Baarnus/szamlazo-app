@@ -1,0 +1,29 @@
+# Függőségek (Gyökér, backend és frontend node_modules)
+node_modules/
+*/node_modules/
+
+# Környezeti változók és titkos kulcsok (kivéve a példafájl)
+.env
+.env.*
+.env.production
+!.env.example
+
+# Build kimenetek és generált fájlok
+dist/
+*/dist/
+.astro/
+*.tsbuildinfo
+
+# Naplófájlok és hibalogok
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Szerkesztő- és operációs rendszer fájlok
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json

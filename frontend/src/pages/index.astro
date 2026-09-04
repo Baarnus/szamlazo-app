@@ -1,0 +1,239 @@
+---
+import '../styles/global.css';
+---
+
+<html lang="hu" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Számla Feldolgozó (Batch + URL)</title>
+  </head>
+  <body class="min-h-screen bg-base-300 p-4 md:p-8 font-sans">
+    <div class="max-w-4xl mx-auto space-y-6">
+      
+      <!-- Fejléc -->
+      <div class="navbar bg-base-100 shadow-xl rounded-box">
+        <div class="flex-1">
+          <a class="btn btn-ghost text-xl text-primary font-bold">Számla Feldolgozó</a>
+        </div>
+        <div class="flex-none">
+          <span class="badge badge-primary badge-outline">Max 10 kép / batch</span>
+        </div>
+      </div>
+
+      <!-- Beviteli doboz Fülekkel -->
+      <div class="card bg-base-100 shadow-xl border border-base-200">
+        <div class="card-body">
+          <div role="tablist" class="tabs tabs-boxed mb-4">
+            <a role="tab" id="tabUpload" class="tab tab-active">Fájl feltöltés (max 10)</a>
+            <a role="tab" id="tabUrl" class="tab">Kép URL linkek</a>
+          </div>
+
+          <!-- 1. Fül: Fájlok feltöltése -->
+          <div id="panelUpload" class="space-y-3">
+            <label class="block text-sm text-base-content/70">Válassz ki legfeljebb 10 képet a gépedről vagy telefonodról:</label>
+            <input 
+              type="file" 
+              id="fileInput" 
+              accept="image/*" 
+              multiple 
+              class="file-input file-input-bordered file-input-primary w-full" 
+            />
+            <div id="fileCountInfo" class="text-xs text-base-content/50"></div>
+          </div>
+
+          <!-- 2. Fül: URL-ek megadása -->
+          <div id="panelUrl" class="hidden space-y-3">
+            <label class="block text-sm text-base-content/70">Illeszd be a képek közvetlen URL-jét (soronként 1 link, max 10 db):</label>
+            <textarea 
+              id="urlInput" 
+              rows="4" 
+              placeholder="https://cdn.discordapp.com/attachments/.../kep1.jpg&#10;https://example.com/kep2.png" 
+              class="textarea textarea-bordered w-full font-mono text-xs"
+            ></textarea>
+          </div>
+
+          <div class="card-actions justify-end mt-4">
+            <button id="processBtn" class="btn btn-primary w-full md:w-auto">
+              Feldolgozás Indítása
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Globális Státusz -->
+      <div id="statusAlert" class="hidden alert shadow-lg">
+        <span id="statusMessage"></span>
+      </div>
+
+      <!-- Eredmények konténere -->
+      <div id="resultsWrapper" class="space-y-6"></div>
+
+    </div>
+
+    <script>
+      import type { ImageInputItem, BatchParseInvoiceResponse, SingleInvoiceResult } from '../../../shared/types';
+
+      const tabUpload = document.getElementById('tabUpload') as HTMLAnchorElement;
+      const tabUrl = document.getElementById('tabUrl') as HTMLAnchorElement;
+      const panelUpload = document.getElementById('panelUpload') as HTMLDivElement;
+      const panelUrl = document.getElementById('panelUrl') as HTMLDivElement;
+      const fileInput = document.getElementById('fileInput') as HTMLInputElement;
+      const urlInput = document.getElementById('urlInput') as HTMLTextAreaElement;
+      const processBtn = document.getElementById('processBtn') as HTMLButtonElement;
+      const statusAlert = document.getElementById('statusAlert') as HTMLDivElement;
+      const statusMessage = document.getElementById('statusMessage') as HTMLSpanElement;
+      const resultsWrapper = document.getElementById('resultsWrapper') as HTMLDivElement;
+
+      let currentMode: 'upload' | 'url' = 'upload';
+
+      // Fülváltás logika
+      tabUpload.addEventListener('click', () => {
+        currentMode = 'upload';
+        tabUpload.classList.add('tab-active');
+        tabUrl.classList.remove('tab-active');
+        panelUpload.classList.remove('hidden');
+        panelUrl.classList.add('hidden');
+      });
+
+      tabUrl.addEventListener('click', () => {
+        currentMode = 'url';
+        tabUrl.classList.add('tab-active');
+        tabUpload.classList.remove('tab-active');
+        panelUrl.classList.remove('hidden');
+        panelUpload.classList.add('hidden');
+      });
+
+      async function fileToBase64(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(file);
+        });
+      }
+
+      processBtn.addEventListener('click', async () => {
+        const items: ImageInputItem[] = [];
+
+        if (currentMode === 'upload') {
+          const files = Array.from(fileInput.files || []);
+          if (files.length === 0) {
+            alert('Válassz ki legalább egy fájlt!');
+            return;
+          }
+          if (files.length > 10) {
+            alert('Egyszerre maximum 10 fájlt tölthetsz fel!');
+            return;
+          }
+
+          for (const file of files) {
+            const base64 = await fileToBase64(file);
+            items.push({ type: 'base64', data: base64, mimeType: file.type });
+          }
+        } else {
+          const urls = urlInput.value
+            .split('\n')
+            .map(u => u.trim())
+            .filter(u => u.length > 0);
+
+          if (urls.length === 0) {
+            alert('Adj meg legalább egy kép URL-t!');
+            return;
+          }
+          if (urls.length > 10) {
+            alert('Egyszerre maximum 10 URL-t adhatsz meg!');
+            return;
+          }
+
+          for (const u of urls) {
+            items.push({ type: 'url', data: u });
+          }
+        }
+
+        processBtn.disabled = true;
+        processBtn.innerHTML = '<span class="loading loading-spinner"></span> Feldolgozás folyamatban...';
+        statusAlert.className = 'hidden';
+        resultsWrapper.innerHTML = '';
+
+        try {
+          const res = await fetch('http://localhost:3000/api/parse-batch', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ items }),
+          });
+
+          const json: BatchParseInvoiceResponse = await res.json();
+
+          if (!json.success) {
+            throw new Error(json.error || 'Hiba történt a kötegelt feldolgozáskor.');
+          }
+
+          statusAlert.className = 'alert alert-success shadow-lg block';
+          statusMessage.textContent = `Összesen ${json.total} számla feldolgozva.`;
+
+          json.results.forEach((item: SingleInvoiceResult) => {
+            const card = document.createElement('div');
+            card.className = 'card bg-base-100 shadow-xl border border-base-200';
+
+            if (!item.success || !item.data) {
+              card.innerHTML = `
+                <div class="card-body">
+                  <div class="flex justify-between items-center">
+                    <h3 class="font-bold text-error">Hiba: ${item.source}</h3>
+                    <span class="badge badge-error">Sikertelen</span>
+                  </div>
+                  <p class="text-xs text-base-content/70">${item.errors.join(', ')}</p>
+                </div>
+              `;
+            } else {
+              const rows = (item.data.tetelek || []).map(t => `
+                <tr>
+                  <td>${t.megnevezes || '-'}</td>
+                  <td class="text-right">${t.mennyiseg}</td>
+                  <td class="text-right">${Number(t.egysegar).toLocaleString()} Ft</td>
+                  <td class="text-right font-medium">${Number(t.brutto_ar).toLocaleString()} Ft</td>
+                </tr>
+              `).join('');
+
+              card.innerHTML = `
+                <div class="card-body space-y-4">
+                  <div class="flex justify-between items-center border-b border-base-200 pb-2">
+                    <h3 class="font-bold text-primary">${item.data.kiallito_neve || 'Ismeretlen kiállító'} (${item.data.szamlaszam || 'Nincs szsz.'})</h3>
+                    <span class="badge ${item.isValid ? 'badge-success' : 'badge-warning'}">
+                      ${item.isValid ? 'Összegek egyeznek' : 'Összeg eltérés'}
+                    </span>
+                  </div>
+
+                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
+                    <div><span class="text-base-content/50 block">Vevő:</span> ${item.data.vevo_neve || '-'}</div>
+                    <div><span class="text-base-content/50 block">Kelt:</span> ${item.data.kelt_datum || '-'}</div>
+                    <div><span class="text-base-content/50 block">Fiz. hat.:</span> ${item.data.fizetesi_hatarido || '-'}</div>
+                    <div><span class="text-base-content/50 block">Végösszeg:</span> <b class="text-success text-sm">${Number(item.data.vegosszeg_brutto).toLocaleString()} Ft</b></div>
+                  </div>
+
+                  <div class="overflow-x-auto border border-base-200 rounded-lg">
+                    <table class="table table-xs table-zebra w-full">
+                      <thead>
+                        <tr><th>Tétel</th><th class="text-right">Db</th><th class="text-right">Egységár</th><th class="text-right">Bruttó</th></tr>
+                      </thead>
+                      <tbody>${rows}</tbody>
+                    </table>
+                  </div>
+                </div>
+              `;
+            }
+            resultsWrapper.appendChild(card);
+          });
+
+        } catch (err: any) {
+          statusAlert.className = 'alert alert-error shadow-lg block';
+          statusMessage.textContent = err.message || 'Hálózati hiba.';
+        } finally {
+          processBtn.disabled = false;
+          processBtn.textContent = 'Feldolgozás Indítása';
+        }
+      });
+    </script>
+  </body>
+</html>

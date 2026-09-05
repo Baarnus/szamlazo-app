@@ -1,6 +1,7 @@
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { streamSSE } from 'hono/streaming';
 import dotenv from 'dotenv';
 import { z } from 'zod';
 import type {
@@ -140,10 +141,141 @@ JSON struktúra:
   "vegosszeg_brutto": number
 }`;
 
+/**
+ * Egyetlen számlakép feldolgozása a Gemini modellel és Zod validációval
+ */
+async function processSingleInvoice(item: ImageInputItem, index: number, apiKey: string): Promise<SingleInvoiceResult> {
+  const sourceLabel = item.type === 'url' ? item.data : `Feltöltött fájl #${index + 1}`;
+  try {
+    const { pureBase64, mimeType } = await resolveImageToBase64(item);
+
+    const geminiRes = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': apiKey.trim()
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: pureBase64 } }] }],
+          generationConfig: { response_mime_type: 'application/json', temperature: 0.1 },
+        }),
+      }
+    );
+
+    if (!geminiRes.ok) {
+      throw new Error(`Gemini API hiba: ${await geminiRes.text()}`);
+    }
+
+    const resultJson: any = await geminiRes.json();
+    const rawText = resultJson.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new Error('Nem érkezett kinyerhető szöveg a képről.');
+
+    const parsedJson = JSON.parse(rawText);
+    const zodResult = InvoiceDataSchema.safeParse(parsedJson);
+
+    if (!zodResult.success) {
+      const errorMessages = zodResult.error.issues.map((issue) => issue.message);
+      return {
+        index,
+        source: sourceLabel,
+        success: true,
+        isValid: false,
+        errors: errorMessages,
+        data: parsedJson as InvoiceData,
+      };
+    }
+
+    return {
+      index,
+      source: sourceLabel,
+      success: true,
+      isValid: true,
+      errors: [],
+      data: zodResult.data as InvoiceData,
+    };
+  } catch (err: any) {
+    return {
+      index,
+      source: sourceLabel,
+      success: false,
+      isValid: false,
+      errors: [err.message || 'Hiba a feldolgozás során.'],
+    };
+  }
+}
+
 // ==========================================
-// 3. API VÉGPONT
+// 3. API VÉGPONTOK
 // ==========================================
 
+// SSE Streaming Végpont (Részletes befejezési sorrend loggal)
+app.post('/api/parse-batch-stream', async (c) => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    return c.json({ error: 'GEMINI_API_KEY hiányzik a szerveren.' }, 500);
+  }
+
+  const body = await c.req.json<{ items: ImageInputItem[] }>();
+  const items = body?.items || [];
+
+  if (items.length === 0) {
+    return c.json({ error: 'Nincs megadva feldolgozandó kép.' }, 400);
+  }
+
+  if (items.length > 10) {
+    return c.json({ error: 'Egyszerre maximum 10 kép dolgozható fel.' }, 400);
+  }
+
+  console.log(`\n🚀 [SSE BATCH INDÍTVA] Összesen ${items.length} db számla feldolgozása kezdődik párhuzamosan...`);
+  const startTime = Date.now();
+  let finishedOrder = 0;
+
+  return streamSSE(c, async (stream) => {
+    // 1. Kezdés jelzése a kliensnek
+    await stream.writeSSE({
+      event: 'start',
+      data: JSON.stringify({ total: items.length }),
+    });
+
+    // 2. Párhuzamos feldolgozás – ahogy egy szál kész, azonnal logoljuk és küldjük
+    const tasks = items.map(async (item, index) => {
+      const itemStart = Date.now();
+      const result = await processSingleInvoice(item, index, apiKey);
+      
+      finishedOrder++;
+      const duration = ((Date.now() - itemStart) / 1000).toFixed(2);
+      const invoiceName = result.data?.kiallito_neve || result.source;
+      const statusIcon = result.success ? (result.isValid ? '✅' : '⚠️') : '❌';
+
+      console.log(`[#${finishedOrder}. elkészült] ${statusIcon} Eredeti index: #${index + 1} | Partner: "${invoiceName}" | Idő: ${duration}s`);
+
+      await stream.writeSSE({
+        event: 'invoice-parsed',
+        data: JSON.stringify({
+          ...result,
+          finishedOrder,
+          durationSeconds: duration
+        }),
+      });
+      return result;
+    });
+
+    await Promise.all(tasks);
+
+    const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
+    console.log(`🏁 [SSE BATCH KÉSZ] Mind a(z) ${items.length} számla befejezve. Teljes idő: ${totalDuration}s\n`);
+
+    // 3. Befejezés jelzése
+    await stream.writeSSE({
+      event: 'done',
+      data: JSON.stringify({ success: true, totalDuration }),
+    });
+  });
+});
+
+// Hagyományos HTTP Végpont (Kompatibilitás megtartásához)
 app.post('/api/parse-batch', async (c) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -161,70 +293,7 @@ app.post('/api/parse-batch', async (c) => {
     return c.json<BatchParseInvoiceResponse>({ success: false, total: items.length, results: [], error: 'Egyszerre maximum 10 kép dolgozható fel.' }, 400);
   }
 
-  const tasks = items.map(async (item, index): Promise<SingleInvoiceResult> => {
-    const sourceLabel = item.type === 'url' ? item.data : `Feltöltött fájl #${index + 1}`;
-    try {
-      const { pureBase64, mimeType } = await resolveImageToBase64(item);
-
-      const geminiRes = await fetch(
-        'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey.trim()
-          },
-          body: JSON.stringify({
-            contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: pureBase64 } }] }],
-            generationConfig: { response_mime_type: 'application/json', temperature: 0.1 },
-          }),
-        }
-      );
-
-      if (!geminiRes.ok) {
-        throw new Error(`Gemini API hiba: ${await geminiRes.text()}`);
-      }
-
-      const resultJson: any = await geminiRes.json();
-      const rawText = resultJson.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!rawText) throw new Error('Nem érkezett kinyerhető szöveg a képről.');
-
-      const parsedJson = JSON.parse(rawText);
-
-      // Zod sémával validáljuk és kényszerítjük a típusokat/matematikai szabályokat
-      const zodResult = InvoiceDataSchema.safeParse(parsedJson);
-
-      if (!zodResult.success) {
-        const errorMessages = zodResult.error.issues.map((issue) => issue.message);
-        return {
-          index,
-          source: sourceLabel,
-          success: true,
-          isValid: false,
-          errors: errorMessages,
-          data: parsedJson as InvoiceData, // A hibás vagy pontatlan adatot is visszaadjuk a felhasználónak szerkesztésre
-        };
-      }
-
-      return {
-        index,
-        source: sourceLabel,
-        success: true,
-        isValid: true,
-        errors: [],
-        data: zodResult.data as InvoiceData,
-      };
-    } catch (err: any) {
-      return {
-        index,
-        source: sourceLabel,
-        success: false,
-        isValid: false,
-        errors: [err.message || 'Hiba a feldolgozás során.'],
-      };
-    }
-  });
-
+  const tasks = items.map((item, index) => processSingleInvoice(item, index, apiKey));
   const results = await Promise.all(tasks);
 
   return c.json<BatchParseInvoiceResponse>({

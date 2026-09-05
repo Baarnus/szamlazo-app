@@ -6,18 +6,19 @@ import '../styles/global.css';
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Számla Feldolgozó (Batch + URL)</title>
+    <title>Számla Feldolgozó (Nemzetközi + CSV Export)</title>
   </head>
   <body class="min-h-screen bg-base-300 p-4 md:p-8 font-sans">
-    <div class="max-w-4xl mx-auto space-y-6">
+    <div class="max-w-5xl mx-auto space-y-6">
       
       <!-- Fejléc -->
       <div class="navbar bg-base-100 shadow-xl rounded-box">
         <div class="flex-1">
-          <a class="btn btn-ghost text-xl text-primary font-bold">Számla Feldolgozó</a>
+          <a class="btn btn-ghost text-xl text-primary font-bold">Számla Feldolgozó AI</a>
         </div>
-        <div class="flex-none">
-          <span class="badge badge-primary badge-outline">Max 10 kép / batch</span>
+        <div class="flex-none gap-2">
+          <span class="badge badge-primary badge-outline">Multi-Currency</span>
+          <span class="badge badge-secondary badge-outline">Max 10 kép / batch</span>
         </div>
       </div>
 
@@ -25,13 +26,13 @@ import '../styles/global.css';
       <div class="card bg-base-100 shadow-xl border border-base-200">
         <div class="card-body">
           <div role="tablist" class="tabs tabs-boxed mb-4">
-            <a role="tab" id="tabUpload" class="tab tab-active">Fájl feltöltés (max 10)</a>
-            <a role="tab" id="tabUrl" class="tab">Kép URL linkek</a>
+            <a role="tab" id="tabUpload" class="tab tab-active font-medium">Fájl feltöltés (max 10)</a>
+            <a role="tab" id="tabUrl" class="tab font-medium">Kép URL linkek</a>
           </div>
 
           <!-- 1. Fül: Fájlok feltöltése -->
           <div id="panelUpload" class="space-y-3">
-            <label class="block text-sm text-base-content/70">Válassz ki legfeljebb 10 képet a gépedről vagy telefonodról:</label>
+            <label class="block text-sm text-base-content/70">Válassz ki legfeljebb 10 számlaképet (JPG, PNG, WebP):</label>
             <input 
               type="file" 
               id="fileInput" 
@@ -39,7 +40,6 @@ import '../styles/global.css';
               multiple 
               class="file-input file-input-bordered file-input-primary w-full" 
             />
-            <div id="fileCountInfo" class="text-xs text-base-content/50"></div>
           </div>
 
           <!-- 2. Fül: URL-ek megadása -->
@@ -48,7 +48,7 @@ import '../styles/global.css';
             <textarea 
               id="urlInput" 
               rows="4" 
-              placeholder="https://cdn.discordapp.com/attachments/.../kep1.jpg&#10;https://example.com/kep2.png" 
+              placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png" 
               class="textarea textarea-bordered w-full font-mono text-xs"
             ></textarea>
           </div>
@@ -61,9 +61,15 @@ import '../styles/global.css';
         </div>
       </div>
 
-      <!-- Globális Státusz -->
-      <div id="statusAlert" class="hidden alert shadow-lg">
-        <span id="statusMessage"></span>
+      <!-- Globális Státusz és Export Sáv -->
+      <div id="statusAlert" class="hidden flex-col md:flex-row justify-between items-center alert shadow-lg gap-4">
+        <span id="statusMessage" class="font-medium"></span>
+        <button id="exportCsvBtn" class="btn btn-sm btn-outline btn-success hidden gap-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          CSV Exportálása
+        </button>
       </div>
 
       <!-- Eredmények konténere -->
@@ -72,7 +78,7 @@ import '../styles/global.css';
     </div>
 
     <script>
-      import type { ImageInputItem, BatchParseInvoiceResponse, SingleInvoiceResult } from '../../../shared/types';
+      import type { ImageInputItem, BatchParseInvoiceResponse, SingleInvoiceResult, InvoiceData } from '../../../shared/types';
 
       const tabUpload = document.getElementById('tabUpload') as HTMLAnchorElement;
       const tabUrl = document.getElementById('tabUrl') as HTMLAnchorElement;
@@ -83,9 +89,11 @@ import '../styles/global.css';
       const processBtn = document.getElementById('processBtn') as HTMLButtonElement;
       const statusAlert = document.getElementById('statusAlert') as HTMLDivElement;
       const statusMessage = document.getElementById('statusMessage') as HTMLSpanElement;
+      const exportCsvBtn = document.getElementById('exportCsvBtn') as HTMLButtonElement;
       const resultsWrapper = document.getElementById('resultsWrapper') as HTMLDivElement;
 
       let currentMode: 'upload' | 'url' = 'upload';
+      let lastProcessedResults: SingleInvoiceResult[] = [];
 
       // Fülváltás logika
       tabUpload.addEventListener('click', () => {
@@ -104,6 +112,23 @@ import '../styles/global.css';
         panelUpload.classList.add('hidden');
       });
 
+      // Dinamikus devizaformázó
+      function formatCurrency(amount: number, currency: string = 'HUF'): string {
+        try {
+          const cleanCurrency = (currency || 'HUF').toUpperCase().trim();
+          const isHUF = cleanCurrency === 'HUF';
+          
+          return new Intl.NumberFormat('hu-HU', {
+            style: 'currency',
+            currency: cleanCurrency,
+            maximumFractionDigits: isHUF ? 0 : 2,
+            minimumFractionDigits: isHUF ? 0 : 2,
+          }).format(amount || 0);
+        } catch {
+          return `${Number(amount || 0).toLocaleString('hu-HU')} ${currency}`;
+        }
+      }
+
       async function fileToBase64(file: File): Promise<string> {
         return new Promise((resolve, reject) => {
           const reader = new FileReader();
@@ -113,6 +138,101 @@ import '../styles/global.css';
         });
       }
 
+      // CSV export generáló és letöltő függvény
+      function exportToCSV(results: SingleInvoiceResult[]) {
+        const rows: string[][] = [
+          [
+            'Számlaszám',
+            'Kiállító',
+            'Kiállító Adószám',
+            'Ország',
+            'Vevő',
+            'Kelt',
+            'Fizetési Határidő',
+            'Pénznem',
+            'Tétel Megnevezés',
+            'Mennyiség',
+            'Egységár',
+            'Áfa %',
+            'Tétel Nettó',
+            'Tétel Áfa',
+            'Tétel Bruttó',
+            'Számla Végösszeg Bruttó',
+            'Státusz'
+          ]
+        ];
+
+        results.forEach(res => {
+          if (res.success && res.data) {
+            const d = res.data;
+            const currency = d.penznem || 'HUF';
+            
+            if (d.tetelek && d.tetelek.length > 0) {
+              d.tetelek.forEach(item => {
+                rows.push([
+                  `"${d.szamlaszam || ''}"`,
+                  `"${d.kiallito_neve || ''}"`,
+                  `"${d.kiallito_adoszam || ''}"`,
+                  `"${d.kiallito_orszag || ''}"`,
+                  `"${d.vevo_neve || ''}"`,
+                  `"${d.kelt_datum || ''}"`,
+                  `"${d.fizetesi_hatarido || ''}"`,
+                  `"${currency}"`,
+                  `"${item.megnevezes || ''}"`,
+                  String(item.mennyiseg || 1),
+                  String(item.egysegar || 0),
+                  String(item.afa_szazalek || 0),
+                  String(item.netto_ar || 0),
+                  String(item.afa_ertek || 0),
+                  String(item.brutto_ar || 0),
+                  String(d.vegosszeg_brutto || 0),
+                  res.isValid ? 'Érvényes' : 'Összegzési eltérés'
+                ]);
+              });
+            } else {
+              // Ha nincsenek tételsorok
+              rows.push([
+                `"${d.szamlaszam || ''}"`,
+                `"${d.kiallito_neve || ''}"`,
+                `"${d.kiallito_adoszam || ''}"`,
+                `"${d.kiallito_orszag || ''}"`,
+                `"${d.vevo_neve || ''}"`,
+                `"${d.kelt_datum || ''}"`,
+                `"${d.fizetesi_hatarido || ''}"`,
+                `"${currency}"`,
+                'N/A',
+                '1',
+                String(d.vegosszeg_netto || 0),
+                'N/A',
+                String(d.vegosszeg_netto || 0),
+                String(d.vegosszeg_afa || 0),
+                String(d.vegosszeg_brutto || 0),
+                String(d.vegosszeg_brutto || 0),
+                res.isValid ? 'Érvényes' : 'Összegzési eltérés'
+              ]);
+            }
+          }
+        });
+
+        // UTF-8 BOM az ékezetes Excel megjelenítéshez
+        const csvContent = '\uFEFF' + rows.map(e => e.join(';')).join('\n');
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.setAttribute('href', url);
+        link.setAttribute('download', `szamlak_export_${new Date().toISOString().slice(0, 10)}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+
+      exportCsvBtn.addEventListener('click', () => {
+        if (lastProcessedResults.length > 0) {
+          exportToCSV(lastProcessedResults);
+        }
+      });
+
+      // Feldolgozás indítása
       processBtn.addEventListener('click', async () => {
         const items: ImageInputItem[] = [];
 
@@ -154,11 +274,13 @@ import '../styles/global.css';
         processBtn.disabled = true;
         processBtn.innerHTML = '<span class="loading loading-spinner"></span> Feldolgozás folyamatban...';
         statusAlert.className = 'hidden';
+        exportCsvBtn.classList.add('hidden');
         resultsWrapper.innerHTML = '';
+        lastProcessedResults = [];
 
-        const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000'
+        const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000';
         try {
-          const res = await fetch(API_BASE+'/api/parse-batch', {
+          const res = await fetch(`${API_BASE}/api/parse-batch`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items }),
@@ -170,8 +292,11 @@ import '../styles/global.css';
             throw new Error(json.error || 'Hiba történt a kötegelt feldolgozáskor.');
           }
 
-          statusAlert.className = 'alert alert-success shadow-lg block';
+          lastProcessedResults = json.results;
+
+          statusAlert.className = 'flex flex-col md:flex-row justify-between items-center alert alert-success shadow-lg gap-4 block';
           statusMessage.textContent = `Összesen ${json.total} számla feldolgozva.`;
+          exportCsvBtn.classList.remove('hidden');
 
           json.results.forEach((item: SingleInvoiceResult) => {
             const card = document.createElement('div');
@@ -184,39 +309,82 @@ import '../styles/global.css';
                     <h3 class="font-bold text-error">Hiba: ${item.source}</h3>
                     <span class="badge badge-error">Sikertelen</span>
                   </div>
-                  <p class="text-xs text-base-content/70">${item.errors.join(', ')}</p>
+                  <p class="text-xs text-base-content/70 mt-2">${item.errors.join(', ')}</p>
                 </div>
               `;
             } else {
-              const rows = (item.data.tetelek || []).map(t => `
+              const d = item.data;
+              const currency = d.penznem || 'HUF';
+
+              const rows = (d.tetelek || []).map(t => `
                 <tr>
-                  <td>${t.megnevezes || '-'}</td>
+                  <td class="font-medium">${t.megnevezes || '-'}</td>
                   <td class="text-right">${t.mennyiseg}</td>
-                  <td class="text-right">${Number(t.egysegar).toLocaleString()} Ft</td>
-                  <td class="text-right font-medium">${Number(t.brutto_ar).toLocaleString()} Ft</td>
+                  <td class="text-right">${formatCurrency(t.egysegar, currency)}</td>
+                  <td class="text-right"><span class="badge badge-ghost badge-sm">${t.afa_szazalek}%</span></td>
+                  <td class="text-right">${formatCurrency(t.netto_ar, currency)}</td>
+                  <td class="text-right font-semibold">${formatCurrency(t.brutto_ar, currency)}</td>
                 </tr>
               `).join('');
 
+              const errorAlert = !item.isValid ? `
+                <div class="alert alert-warning text-xs p-2 rounded-lg mt-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <span><b>Figyelmeztetés:</b> ${item.errors.join(' | ')}</span>
+                </div>
+              ` : '';
+
               card.innerHTML = `
                 <div class="card-body space-y-4">
-                  <div class="flex justify-between items-center border-b border-base-200 pb-2">
-                    <h3 class="font-bold text-primary">${item.data.kiallito_neve || 'Ismeretlen kiállító'} (${item.data.szamlaszam || 'Nincs szsz.'})</h3>
-                    <span class="badge ${item.isValid ? 'badge-success' : 'badge-warning'}">
-                      ${item.isValid ? 'Összegek egyeznek' : 'Összeg eltérés'}
-                    </span>
+                  <!-- Kártya Fejléc -->
+                  <div class="flex flex-wrap justify-between items-center border-b border-base-200 pb-3 gap-2">
+                    <div>
+                      <h3 class="font-bold text-lg text-primary">
+                        ${d.kiallito_neve || 'Ismeretlen kiállító'}
+                        ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1">${d.kiallito_orszag}</span>` : ''}
+                      </h3>
+                      <div class="text-xs text-base-content/60">
+                        Számlaszám: <span class="font-mono font-semibold">${d.szamlaszam || 'Nincs'}</span> 
+                        ${d.kiallito_adoszam ? `| Adószám: ${d.kiallito_adoszam}` : ''}
+                      </div>
+                    </div>
+                    <div class="flex items-center gap-2">
+                      <span class="badge badge-accent font-bold">${currency}</span>
+                      <span class="badge ${item.isValid ? 'badge-success' : 'badge-warning'}">
+                        ${item.isValid ? '✓ Valid' : '⚠ Ellenőrizendő'}
+                      </span>
+                    </div>
                   </div>
 
-                  <div class="grid grid-cols-2 md:grid-cols-4 gap-2 text-xs">
-                    <div><span class="text-base-content/50 block">Vevő:</span> ${item.data.vevo_neve || '-'}</div>
-                    <div><span class="text-base-content/50 block">Kelt:</span> ${item.data.kelt_datum || '-'}</div>
-                    <div><span class="text-base-content/50 block">Fiz. hat.:</span> ${item.data.fizetesi_hatarido || '-'}</div>
-                    <div><span class="text-base-content/50 block">Végösszeg:</span> <b class="text-success text-sm">${Number(item.data.vegosszeg_brutto).toLocaleString()} Ft</b></div>
+                  ${errorAlert}
+
+                  <!-- Meta adatok és Összesítők -->
+                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs bg-base-200/50 p-3 rounded-box">
+                    <div><span class="text-base-content/50 block">Vevő:</span> <span class="font-medium">${d.vevo_neve || '-'}</span></div>
+                    <div><span class="text-base-content/50 block">Kelt:</span> <span class="font-medium">${d.kelt_datum || '-'}</span></div>
+                    <div><span class="text-base-content/50 block">Fiz. határidő:</span> <span class="font-medium">${d.fizetesi_hatarido || '-'}</span></div>
+                    <div><span class="text-base-content/50 block">Nettó összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_netto, currency)}</span></div>
+                    <div><span class="text-base-content/50 block">ÁFA összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_afa, currency)}</span></div>
                   </div>
 
+                  <!-- Kiemelt Végösszeg Sáv -->
+                  <div class="flex justify-between items-center bg-base-200 px-4 py-2 rounded-lg">
+                    <span class="text-sm font-semibold text-base-content/80">Fizetendő bruttó végösszeg:</span>
+                    <span class="text-lg font-bold text-success">${formatCurrency(d.vegosszeg_brutto, currency)}</span>
+                  </div>
+
+                  <!-- Tételek Táblázat -->
                   <div class="overflow-x-auto border border-base-200 rounded-lg">
                     <table class="table table-xs table-zebra w-full">
-                      <thead>
-                        <tr><th>Tétel</th><th class="text-right">Db</th><th class="text-right">Egységár</th><th class="text-right">Bruttó</th></tr>
+                      <thead class="bg-base-200/60">
+                        <tr>
+                          <th>Tétel</th>
+                          <th class="text-right">Mennyiség</th>
+                          <th class="text-right">Egységár</th>
+                          <th class="text-right">ÁFA %</th>
+                          <th class="text-right">Nettó</th>
+                          <th class="text-right">Bruttó</th>
+                        </tr>
                       </thead>
                       <tbody>${rows}</tbody>
                     </table>
@@ -229,7 +397,7 @@ import '../styles/global.css';
 
         } catch (err: any) {
           statusAlert.className = 'alert alert-error shadow-lg block';
-          statusMessage.textContent = err.message || 'Hálózati hiba.';
+          statusMessage.textContent = err.message || 'Hálózati hiba a feldolgozás során.';
         } finally {
           processBtn.disabled = false;
           processBtn.textContent = 'Feldolgozás Indítása';

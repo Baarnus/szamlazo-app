@@ -1,0 +1,35 @@
+FROM node:22-slim AS builder
+
+WORKDIR /app
+
+# Frontend függőségek telepítése
+COPY frontend/package*.json ./frontend/
+WORKDIR /app/frontend
+RUN npm install
+
+# Forráskódok (frontend + shared) bemásolása
+WORKDIR /app
+COPY shared ./shared
+COPY frontend ./frontend
+
+# Astro build
+WORKDIR /app/frontend
+RUN npm run build
+
+# Éles webkiszolgáló (Astro SSR esetén Node, statikus esetén pl. static server / node)
+FROM node:22-slim AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOST=0.0.0.0
+ENV PORT=4321
+
+COPY --from=builder /app/frontend/package*.json ./
+RUN npm install --omit=dev
+
+COPY --from=builder /app/frontend/dist ./dist
+
+EXPOSE 4321
+
+CMD ["node", "./dist/server/entry.mjs"]

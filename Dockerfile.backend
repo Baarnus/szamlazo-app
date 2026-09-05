@@ -1,34 +1,21 @@
-FROM node:22-slim AS builder
+FROM node:22-slim
 
 WORKDIR /app
 
-# Függőségek másolása a backendből
+# Függőségek és kódok másolása (backend és shared egyben)
 COPY backend/package*.json ./backend/
+COPY shared ./shared
+
 WORKDIR /app/backend
 RUN npm install
 
-# Kódok másolása (backend és shared mappa is a helyére kerül)
-WORKDIR /app
-COPY shared ./shared
-COPY backend ./backend
+COPY backend ./
 
-# Build futtatása a backend mappában
-WORKDIR /app/backend
+# TypeScript fordítás futtatása, hogy létrejöjjön a dist/ mappa
 RUN npm run build
-
-# Éles futtató környezet
-FROM node:22-slim AS runner
-
-WORKDIR /app
 
 ENV NODE_ENV=production
 ENV PORT=3000
-
-COPY --from=builder /app/backend/package*.json ./
-RUN npm install --omit=dev
-
-COPY --from=builder /app/backend/dist ./dist
-COPY --from=builder /app/shared ../shared
 
 EXPOSE 3000
 

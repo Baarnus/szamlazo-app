@@ -11,7 +11,7 @@ RUN npm install
 
 COPY backend ./
 
-# TypeScript fordítás futtatása, hogy létrejöjjön a dist/ mappa
+# TypeScript fordítás futtatása
 RUN npm run build
 
 ENV NODE_ENV=production
@@ -19,4 +19,5 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+# A lefordított belépési pont indítása
+CMD ["node", "dist/backend/src/index.js"]

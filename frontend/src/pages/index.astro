@@ -1042,6 +1042,15 @@ https://pelda.hu/szamla2.png"
 
       // CSV EXPORT
       function exportToCSV(results: SingleInvoiceResult[]) {
+        // Segédfüggvény: Excel-kompatibilis magyar számformátum (pont helyett vessző)
+        const formatNumberForExcel = (
+          num: number | undefined | null,
+        ): string => {
+          if (num === undefined || num === null || isNaN(Number(num)))
+            return "0";
+          return String(num).replace(".", ",");
+        };
+
         const rows: string[][] = [
           [
             "Számlaszám",
@@ -1072,9 +1081,10 @@ https://pelda.hu/szamla2.png"
             if (d.tetelek && d.tetelek.length > 0) {
               d.tetelek.forEach((item) => {
                 const afaErtek =
-                  item.afa_ertek !== undefined
+                  item.afa_ertek !== undefined && item.afa_ertek !== null
                     ? item.afa_ertek
                     : Number(item.brutto_ar || 0) - Number(item.netto_ar || 0);
+
                 rows.push([
                   `"${d.szamlaszam || ""}"`,
                   `"${d.kiallito_neve || ""}"`,
@@ -1084,14 +1094,14 @@ https://pelda.hu/szamla2.png"
                   `"${d.kelt_datum || ""}"`,
                   `"${d.fizetesi_hatarido || ""}"`,
                   `"${currency}"`,
-                  `"${item.megnevezes || ""}"`,
-                  String(item.mennyiseg || 1),
-                  String(item.egysegar || 0),
-                  String(item.afa_szazalek || 0),
-                  String(item.netto_ar || 0),
-                  String(afaErtek || 0),
-                  String(item.brutto_ar || 0),
-                  String(d.vegosszeg_brutto || 0),
+                  `"${(item.megnevezes || "").replace(/"/g, '""')}"`,
+                  formatNumberForExcel(item.mennyiseg || 1),
+                  formatNumberForExcel(item.egysegar || 0),
+                  formatNumberForExcel(item.afa_szazalek || 0),
+                  formatNumberForExcel(item.netto_ar || 0),
+                  formatNumberForExcel(afaErtek || 0),
+                  formatNumberForExcel(item.brutto_ar || 0),
+                  formatNumberForExcel(d.vegosszeg_brutto || 0),
                   res.isValid ? "Érvényes" : "Összegzési eltérés",
                 ]);
               });
@@ -1105,14 +1115,14 @@ https://pelda.hu/szamla2.png"
                 `"${d.kelt_datum || ""}"`,
                 `"${d.fizetesi_hatarido || ""}"`,
                 `"${currency}"`,
-                "N/A",
+                '"N/A"',
                 "1",
-                String(d.vegosszeg_netto || 0),
-                "N/A",
-                String(d.vegosszeg_netto || 0),
-                String(d.vegosszeg_afa || 0),
-                String(d.vegosszeg_brutto || 0),
-                String(d.vegosszeg_brutto || 0),
+                formatNumberForExcel(d.vegosszeg_netto || 0),
+                '"N/A"',
+                formatNumberForExcel(d.vegosszeg_netto || 0),
+                formatNumberForExcel(d.vegosszeg_afa || 0),
+                formatNumberForExcel(d.vegosszeg_brutto || 0),
+                formatNumberForExcel(d.vegosszeg_brutto || 0),
                 res.isValid ? "Érvényes" : "Összegzési eltérés",
               ]);
             }

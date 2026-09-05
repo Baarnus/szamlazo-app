@@ -1,20 +1,26 @@
+export type CurrencyCode = 'HUF' | 'EUR' | 'USD' | 'GBP' | 'CHF' | string;
+
 export interface InvoiceItem {
   megnevezes: string;
   mennyiseg: number;
   egysegar: number;
   afa_szazalek: number;
   netto_ar: number;
+  afa_ertek?: number;
   brutto_ar: number;
 }
 
 export interface InvoiceData {
   kiallito_neve?: string;
   kiallito_adoszam?: string;
+  kiallito_orszag?: string;
   vevo_neve?: string;
   vevo_adoszam?: string;
   szamlaszam?: string;
   kelt_datum?: string;
+  teljesites_datum?: string;
   fizetesi_hatarido?: string;
+  penznem: CurrencyCode;
   tetelek: InvoiceItem[];
   vegosszeg_netto: number;
   vegosszeg_afa: number;
@@ -29,7 +35,7 @@ export interface ImageInputItem {
 
 export interface SingleInvoiceResult {
   index: number;
-  source: string; // URL vagy a fájl indexe
+  source: string;
   success: boolean;
   isValid: boolean;
   errors: string[];

@@ -158,7 +158,7 @@ import '../styles/global.css';
 
         const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000'
         try {
-          const res = await fetch(API_BASE, {
+          const res = await fetch(API_BASE+'/api/parse-batch', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items }),

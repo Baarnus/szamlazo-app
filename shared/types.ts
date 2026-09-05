@@ -1,4 +1,12 @@
-export type CurrencyCode = 'HUF' | 'EUR' | 'USD' | 'GBP' | 'CHF' | string;
+export const SUPPORTED_CURRENCIES = [
+  { code: 'HUF', symbol: 'Ft' },
+  { code: 'EUR', symbol: '€' },
+  { code: 'USD', symbol: '$' },
+  { code: 'GBP', symbol: '£' },
+  { code: 'CHF', symbol: 'Fr.' }
+] as const;
+
+export type CurrencyCode = (typeof SUPPORTED_CURRENCIES)[number]['code'] | string;
 
 export interface InvoiceItem {
   megnevezes: string;
@@ -29,7 +37,7 @@ export interface InvoiceData {
 
 export interface ImageInputItem {
   type: 'base64' | 'url';
-  data: string; // Base64 string VAGY URL
+  data: string;
   mimeType?: string;
 }
 

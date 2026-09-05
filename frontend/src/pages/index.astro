@@ -1,27 +1,24 @@
 ---
 import "../styles/global.css";
+import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 ---
 
 <html lang="hu" data-theme="dark">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Számla Feldolgozó (Nemzetközi + Drag & Drop)</title>
+    <title>Számla Feldolgozó (Split View & Dinamikus Devizák)</title>
   </head>
   <body class="min-h-screen bg-base-300 p-4 md:p-8 font-sans">
     <div class="max-w-5xl mx-auto space-y-6">
       <!-- Fejléc -->
       <div class="navbar bg-base-100 shadow-xl rounded-box">
         <div class="flex-1">
-          <a class="btn btn-ghost text-xl text-primary font-bold"
-            >Számla Feldolgozó AI</a
-          >
+          <a class="btn btn-ghost text-xl text-primary font-bold">Számla Feldolgozó AI</a>
         </div>
         <div class="flex-none gap-2">
-          <span class="badge badge-primary badge-outline">Multi-Currency</span>
-          <span class="badge badge-secondary badge-outline"
-            >Max 10 kép / batch</span
-          >
+          <span class="badge badge-primary badge-outline">Split View</span>
+          <span class="badge badge-secondary badge-outline">Single Source of Truth</span>
         </div>
       </div>
 
@@ -29,9 +26,7 @@ import "../styles/global.css";
       <div class="card bg-base-100 shadow-xl border border-base-200">
         <div class="card-body">
           <div role="tablist" class="tabs tabs-boxed mb-4">
-            <a role="tab" id="tabUpload" class="tab tab-active font-medium"
-              >Fájl feltöltés / Drop / Paste</a
-            >
+            <a role="tab" id="tabUpload" class="tab tab-active font-medium">Fájl feltöltés / Drop / Paste</a>
             <a role="tab" id="tabUrl" class="tab font-medium">Kép URL linkek</a>
           </div>
 
@@ -56,11 +51,7 @@ import "../styles/global.css";
                 ></path>
               </svg>
               <p class="font-medium text-sm md:text-base">
-                Húzd ide a számlákat, <span class="text-primary underline"
-                  >tallózd be</span
-                >, vagy nyomj <kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd
-                  class="kbd kbd-sm">V</kbd
-                >-t
+                Húzd ide a számlákat, <span class="text-primary underline">tallózd be</span>, vagy nyomj <kbd class="kbd kbd-sm">Ctrl</kbd> + <kbd class="kbd kbd-sm">V</kbd>-t
               </p>
               <p class="text-xs text-base-content/60">
                 PNG, JPG, WebP formátumok, maximum 10 fájl
@@ -77,34 +68,22 @@ import "../styles/global.css";
             <!-- Kijelölt képek előnézeti listája -->
             <div id="previewContainer" class="hidden space-y-2">
               <div class="flex justify-between items-center">
-                <span
-                  class="text-xs font-semibold text-base-content/70"
-                  id="fileCountBadge">Kiválasztva: 0/10 kép</span
-                >
-                <button
-                  id="clearFilesBtn"
-                  class="btn btn-ghost btn-xs text-error">Összes törlése</button
-                >
+                <span class="text-xs font-semibold text-base-content/70" id="fileCountBadge">Kiválasztva: 0/10 kép</span>
+                <button id="clearFilesBtn" class="btn btn-ghost btn-xs text-error">Összes törlése</button>
               </div>
-              <div
-                id="previewGrid"
-                class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"
-              >
-              </div>
+              <div id="previewGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"></div>
             </div>
           </div>
 
           <!-- 2. Fül: URL-ek megadása -->
           <div id="panelUrl" class="hidden space-y-3">
-            <label class="block text-sm text-base-content/70"
-              >Illeszd be a képek közvetlen URL-jét (soronként 1 link, max 10
-              db):</label
-            >
+            <label class="block text-sm text-base-content/70">
+              Illeszd be a képek közvetlen URL-jét (soronként 1 link, max 10 db):
+            </label>
             <textarea
               id="urlInput"
               rows="4"
-              placeholder="https://pelda.hu/szamla1.jpg
-https://pelda.hu/szamla2.png"
+              placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png"
               class="textarea textarea-bordered w-full font-mono text-xs"
             ></textarea>
           </div>
@@ -149,61 +128,240 @@ https://pelda.hu/szamla2.png"
       <div id="resultsWrapper" class="space-y-6"></div>
     </div>
 
+    <!-- SPLIT VIEW & INLINE SZERKESZTŐ MODAL -->
+    <dialog id="editModal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box w-11/12 max-w-7xl max-h-[92vh] flex flex-col p-4 md:p-6 bg-base-100">
+        <!-- Modal Fejléc -->
+        <div class="flex justify-between items-center border-b border-base-200 pb-3">
+          <div class="flex items-center gap-3">
+            <h3 class="font-bold text-lg text-primary" id="modalTitle">
+              Számla Ellenőrzése és Módosítása
+            </h3>
+            <span id="modalValidBadge" class="badge">Valid</span>
+          </div>
+          <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
+          </form>
+        </div>
+
+        <!-- Split Kétoszlopos Tartalom -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 my-4 flex-1 overflow-hidden">
+          <!-- Bal Oszlop: Eredeti Számlakép -->
+          <div class="lg:col-span-5 bg-base-200 rounded-xl p-2 flex flex-col items-center justify-start overflow-auto max-h-[40vh] lg:max-h-[68vh] border border-base-300">
+            <div class="w-full flex justify-between items-center px-2 py-1 mb-1">
+              <span class="text-xs text-base-content/60 font-medium">Eredeti számlakép</span>
+              <a
+                id="modalImageLink"
+                target="_blank"
+                class="text-xs text-primary underline hover:text-primary-focus"
+              >
+                Megnyitás új lapon ↗
+              </a>
+            </div>
+            <img
+              id="modalImage"
+              class="max-w-full h-auto object-contain rounded shadow"
+              src=""
+              alt="Számla kép"
+            />
+          </div>
+
+          <!-- Jobb Oszlop: Szerkeszthető Mezők és Tételek -->
+          <div class="lg:col-span-7 flex flex-col gap-4 overflow-y-auto max-h-[45vh] lg:max-h-[68vh] pr-1">
+            <!-- Fejléc mezők -->
+            <div class="bg-base-200/50 p-3 rounded-xl border border-base-200 space-y-3">
+              <h4 class="text-xs font-bold uppercase tracking-wider text-base-content/60">
+                Fejléc Adatok
+              </h4>
+              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
+                <div>
+                  <label class="label label-text text-[11px] p-0 mb-1">Kiállító Neve</label>
+                  <input
+                    type="text"
+                    id="edit_kiallito_neve"
+                    class="input input-xs input-bordered w-full"
+                  />
+                </div>
+                <div>
+                  <label class="label label-text text-[11px] p-0 mb-1">Kiállító Adószáma</label>
+                  <input
+                    type="text"
+                    id="edit_kiallito_adoszam"
+                    class="input input-xs input-bordered w-full"
+                  />
+                </div>
+                <div>
+                  <label class="label label-text text-[11px] p-0 mb-1">Számlaszám</label>
+                  <input
+                    type="text"
+                    id="edit_szamlaszam"
+                    class="input input-xs input-bordered w-full font-mono font-bold"
+                  />
+                </div>
+                <div>
+                  <label class="label label-text text-[11px] p-0 mb-1">Vevő Neve</label>
+                  <input
+                    type="text"
+                    id="edit_vevo_neve"
+                    class="input input-xs input-bordered w-full"
+                  />
+                </div>
+                <div>
+                  <label class="label label-text text-[11px] p-0 mb-1">Kelt Dátum</label>
+                  <input
+                    type="date"
+                    id="edit_kelt_datum"
+                    class="input input-xs input-bordered w-full"
+                  />
+                </div>
+                <div>
+                  <label class="label label-text text-[11px] p-0 mb-1">Fizetési Határidő</label>
+                  <input
+                    type="date"
+                    id="edit_fizetesi_hatarido"
+                    class="input input-xs input-bordered w-full"
+                  />
+                </div>
+              </div>
+              
+              <!-- Pénznem Select Dropdown (Dinamikusan renderelve types.ts alapján) -->
+              <div class="flex items-center gap-3 pt-1">
+                <div class="w-44">
+                  <label class="label label-text text-[11px] p-0 mb-1">Pénznem (ISO)</label>
+                  <select
+                    id="edit_penznem"
+                    class="select select-xs select-bordered w-full font-bold"
+                  >
+                    {SUPPORTED_CURRENCIES.map((curr) => (
+                      <option value={curr.code}>{curr.code} ({curr.symbol})</option>
+                    ))}
+                  </select>
+                </div>
+                <div class="w-24">
+                  <label class="label label-text text-[11px] p-0 mb-1">Ország</label>
+                  <input
+                    type="text"
+                    id="edit_orszag"
+                    class="input input-xs input-bordered w-full uppercase"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <!-- Tételek Táblázat -->
+            <div class="space-y-2">
+              <div class="flex justify-between items-center">
+                <h4 class="text-xs font-bold uppercase tracking-wider text-base-content/60">
+                  Tételsorok
+                </h4>
+                <button id="addItemBtn" class="btn btn-xs btn-outline btn-primary">
+                  + Új tétel
+                </button>
+              </div>
+
+              <div class="overflow-x-auto border border-base-200 rounded-lg">
+                <table class="table table-xs w-full" id="editItemsTable">
+                  <thead class="bg-base-200">
+                    <tr>
+                      <th class="w-1/3">Megnevezés</th>
+                      <th class="w-12 text-right">Menny.</th>
+                      <th class="w-20 text-right">Egységár</th>
+                      <th class="w-14 text-right">Áfa %</th>
+                      <th class="w-20 text-right">Nettó</th>
+                      <th class="w-20 text-right">Áfa érték</th>
+                      <th class="w-20 text-right">Bruttó</th>
+                      <th class="w-8"></th>
+                    </tr>
+                  </thead>
+                  <tbody id="editItemsTbody"></tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Összesítők és Végösszeg Kártya -->
+            <div class="bg-base-200 p-3 rounded-xl flex flex-wrap justify-between items-center gap-3 border border-base-300 mt-auto">
+              <div class="text-xs space-y-1">
+                <div>Nettó összesen: <b id="displayNetto">0</b></div>
+                <div>Áfa összesen: <b id="displayAfa">0</b></div>
+              </div>
+              <div class="text-right">
+                <span class="text-xs text-base-content/60 block">Fizetendő Bruttó:</span>
+                <span class="text-lg font-bold text-success" id="displayBrutto">0</span>
+              </div>
+            </div>
+
+            <!-- Validációs figyelmeztető doboz a modalban -->
+            <div id="modalWarningBox" class="hidden alert alert-warning text-xs p-2 rounded-lg"></div>
+          </div>
+        </div>
+
+        <!-- Modal Alsó Gombok -->
+        <div class="modal-action border-t border-base-200 pt-3 flex justify-between items-center">
+          <button id="cancelModalBtn" class="btn btn-sm btn-ghost">Mégse</button>
+          <button id="saveChangesBtn" class="btn btn-sm btn-primary">Változtatások Mentése</button>
+        </div>
+      </div>
+    </dialog>
+
     <script>
       import type {
         ImageInputItem,
         BatchParseInvoiceResponse,
         SingleInvoiceResult,
+        InvoiceData,
+        InvoiceItem,
       } from "../../../shared/types";
+      import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
-      const tabUpload = document.getElementById(
-        "tabUpload",
-      ) as HTMLAnchorElement;
+      const tabUpload = document.getElementById("tabUpload") as HTMLAnchorElement;
       const tabUrl = document.getElementById("tabUrl") as HTMLAnchorElement;
-      const panelUpload = document.getElementById(
-        "panelUpload",
-      ) as HTMLDivElement;
+      const panelUpload = document.getElementById("panelUpload") as HTMLDivElement;
       const panelUrl = document.getElementById("panelUrl") as HTMLDivElement;
 
       const dropZone = document.getElementById("dropZone") as HTMLDivElement;
-      const fileInput = document.getElementById(
-        "fileInput",
-      ) as HTMLInputElement;
-      const previewContainer = document.getElementById(
-        "previewContainer",
-      ) as HTMLDivElement;
-      const previewGrid = document.getElementById(
-        "previewGrid",
-      ) as HTMLDivElement;
-      const fileCountBadge = document.getElementById(
-        "fileCountBadge",
-      ) as HTMLSpanElement;
-      const clearFilesBtn = document.getElementById(
-        "clearFilesBtn",
-      ) as HTMLButtonElement;
+      const fileInput = document.getElementById("fileInput") as HTMLInputElement;
+      const previewContainer = document.getElementById("previewContainer") as HTMLDivElement;
+      const previewGrid = document.getElementById("previewGrid") as HTMLDivElement;
+      const fileCountBadge = document.getElementById("fileCountBadge") as HTMLSpanElement;
+      const clearFilesBtn = document.getElementById("clearFilesBtn") as HTMLButtonElement;
 
-      const urlInput = document.getElementById(
-        "urlInput",
-      ) as HTMLTextAreaElement;
-      const processBtn = document.getElementById(
-        "processBtn",
-      ) as HTMLButtonElement;
-      const statusAlert = document.getElementById(
-        "statusAlert",
-      ) as HTMLDivElement;
-      const statusMessage = document.getElementById(
-        "statusMessage",
-      ) as HTMLSpanElement;
-      const exportCsvBtn = document.getElementById(
-        "exportCsvBtn",
-      ) as HTMLButtonElement;
-      const resultsWrapper = document.getElementById(
-        "resultsWrapper",
-      ) as HTMLDivElement;
+      const urlInput = document.getElementById("urlInput") as HTMLTextAreaElement;
+      const processBtn = document.getElementById("processBtn") as HTMLButtonElement;
+      const statusAlert = document.getElementById("statusAlert") as HTMLDivElement;
+      const statusMessage = document.getElementById("statusMessage") as HTMLSpanElement;
+      const exportCsvBtn = document.getElementById("exportCsvBtn") as HTMLButtonElement;
+      const resultsWrapper = document.getElementById("resultsWrapper") as HTMLDivElement;
+
+      // Modal elemek
+      const editModal = document.getElementById("editModal") as HTMLDialogElement;
+      const modalImage = document.getElementById("modalImage") as HTMLImageElement;
+      const modalImageLink = document.getElementById("modalImageLink") as HTMLAnchorElement;
+      const modalValidBadge = document.getElementById("modalValidBadge") as HTMLSpanElement;
+      const modalWarningBox = document.getElementById("modalWarningBox") as HTMLDivElement;
+
+      const editKiallitoNeve = document.getElementById("edit_kiallito_neve") as HTMLInputElement;
+      const editKiallitoAdoszam = document.getElementById("edit_kiallito_adoszam") as HTMLInputElement;
+      const editSzamlaszam = document.getElementById("edit_szamlaszam") as HTMLInputElement;
+      const editVevoNeve = document.getElementById("edit_vevo_neve") as HTMLInputElement;
+      const editKeltDatum = document.getElementById("edit_kelt_datum") as HTMLInputElement;
+      const editFizetesiHatarido = document.getElementById("edit_fizetesi_hatarido") as HTMLInputElement;
+      const editPenznem = document.getElementById("edit_penznem") as HTMLSelectElement;
+      const editOrszag = document.getElementById("edit_orszag") as HTMLInputElement;
+
+      const editItemsTbody = document.getElementById("editItemsTbody") as HTMLTableSectionElement;
+      const addItemBtn = document.getElementById("addItemBtn") as HTMLButtonElement;
+      const displayNetto = document.getElementById("displayNetto") as HTMLElement;
+      const displayAfa = document.getElementById("displayAfa") as HTMLElement;
+      const displayBrutto = document.getElementById("displayBrutto") as HTMLElement;
+      const saveChangesBtn = document.getElementById("saveChangesBtn") as HTMLButtonElement;
+      const cancelModalBtn = document.getElementById("cancelModalBtn") as HTMLButtonElement;
 
       let currentMode: "upload" | "url" = "upload";
       let selectedFiles: File[] = [];
+      let inputItemsCache: ImageInputItem[] = [];
       let lastProcessedResults: SingleInvoiceResult[] = [];
+      let activeEditIndex: number = -1;
+      let currentEditingData: InvoiceData | null = null;
 
       // Fülváltás
       tabUpload.addEventListener("click", () => {
@@ -222,11 +380,7 @@ https://pelda.hu/szamla2.png"
         panelUpload.classList.add("hidden");
       });
 
-      // Dinamikus pénznemformázás
-      function formatCurrency(
-        amount: number,
-        currency: string = "HUF",
-      ): string {
+      function formatCurrency(amount: number, currency: string = "HUF"): string {
         try {
           const cleanCurrency = (currency || "HUF").toUpperCase().trim();
           const isHUF = cleanCurrency === "HUF";
@@ -251,7 +405,6 @@ https://pelda.hu/szamla2.png"
         });
       }
 
-      // Fájlok kezelése és előnézet frissítése
       function handleNewFiles(files: File[]) {
         const imageFiles = files.filter((f) => f.type.startsWith("image/"));
         if (imageFiles.length === 0) return;
@@ -315,15 +468,11 @@ https://pelda.hu/szamla2.png"
         fileInput.value = "";
       });
 
-      // 1. Kattintásos tallózás
       dropZone.addEventListener("click", () => fileInput.click());
       fileInput.addEventListener("change", () => {
-        if (fileInput.files) {
-          handleNewFiles(Array.from(fileInput.files));
-        }
+        if (fileInput.files) handleNewFiles(Array.from(fileInput.files));
       });
 
-      // 2. Drag and Drop események
       ["dragenter", "dragover"].forEach((eventName) => {
         dropZone.addEventListener(eventName, (e) => {
           e.preventDefault();
@@ -342,12 +491,9 @@ https://pelda.hu/szamla2.png"
 
       dropZone.addEventListener("drop", (e) => {
         const dt = e.dataTransfer;
-        if (dt?.files) {
-          handleNewFiles(Array.from(dt.files));
-        }
+        if (dt?.files) handleNewFiles(Array.from(dt.files));
       });
 
-      // 3. Paste (Ctrl+V) vágólapról bárhol az oldalon
       window.addEventListener("paste", (e: ClipboardEvent) => {
         if (currentMode !== "upload") return;
         const clipboardItems = e.clipboardData?.items;
@@ -360,20 +506,361 @@ https://pelda.hu/szamla2.png"
             if (blob) {
               const file = new File(
                 [blob],
-                `beillesztett_kep_${Date.now()}.png`,
+                `beillesztett_szamla_${Date.now()}.png`,
                 { type: blob.type },
               );
               pastedFiles.push(file);
             }
           }
         }
-
-        if (pastedFiles.length > 0) {
-          handleNewFiles(pastedFiles);
-        }
+        if (pastedFiles.length > 0) handleNewFiles(pastedFiles);
       });
 
-      // CSV Export
+      // SPLIT VIEW & SZERKESZTŐ LOGIKA
+      function openEditModal(index: number) {
+        const item = lastProcessedResults[index];
+        if (!item || !item.data) return;
+
+        activeEditIndex = index;
+        currentEditingData = JSON.parse(JSON.stringify(item.data));
+
+        const inputItem = inputItemsCache[index];
+        let imageSrc = "";
+        if (inputItem) {
+          imageSrc =
+            inputItem.type === "base64"
+              ? inputItem.data.startsWith("data:")
+                ? inputItem.data
+                : `data:${inputItem.mimeType || "image/jpeg"};base64,${inputItem.data}`
+              : inputItem.data;
+        }
+
+        modalImage.src = imageSrc;
+        modalImageLink.href = imageSrc;
+
+        editKiallitoNeve.value = currentEditingData?.kiallito_neve || "";
+        editKiallitoAdoszam.value = currentEditingData?.kiallito_adoszam || "";
+        editSzamlaszam.value = currentEditingData?.szamlaszam || "";
+        editVevoNeve.value = currentEditingData?.vevo_neve || "";
+        editKeltDatum.value = currentEditingData?.kelt_datum || "";
+        editFizetesiHatarido.value = currentEditingData?.fizetesi_hatarido || "";
+        editOrszag.value = currentEditingData?.kiallito_orszag || "";
+
+        // Pénznem dropdown beállítása a shared konfiguráció alapján
+        const currentCur = (currentEditingData?.penznem || "HUF").toUpperCase().trim();
+        const isSupported = SUPPORTED_CURRENCIES.some(c => c.code === currentCur);
+
+        // Ha a modell olyan devizát talált, ami nincs a types.ts listájában, ideiglenesen hozzáadjuk
+        const dynamicExisting = Array.from(editPenznem.options).some(opt => opt.value === currentCur);
+        if (!isSupported && !dynamicExisting && currentCur) {
+          const newOpt = document.createElement("option");
+          newOpt.value = currentCur;
+          newOpt.textContent = `${currentCur} (AI talált)`;
+          editPenznem.appendChild(newOpt);
+        }
+        editPenznem.value = currentCur;
+
+        renderEditItems();
+        recalculateModalTotals();
+
+        editModal.showModal();
+      }
+
+      function renderEditItems() {
+        if (!currentEditingData) return;
+        editItemsTbody.innerHTML = "";
+
+        const cur = editPenznem.value || "HUF";
+
+        (currentEditingData.tetelek || []).forEach((t, i) => {
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td>
+              <input type="text" class="input input-xs input-bordered w-full item-name" data-index="${i}" value="${t.megnevezes || ""}" />
+            </td>
+            <td>
+              <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-qty" data-index="${i}" value="${t.mennyiseg || 1}" />
+            </td>
+            <td>
+              <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-unit" data-index="${i}" value="${t.egysegar || 0}" />
+            </td>
+            <td>
+              <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-vat-rate" data-index="${i}" value="${t.afa_szazalek || 0}" />
+            </td>
+            <td class="text-right font-medium text-xs item-net-display">${formatCurrency(t.netto_ar, cur)}</td>
+            <td class="text-right text-xs text-base-content/70 item-vat-display">${formatCurrency(t.afa_ertek || 0, cur)}</td>
+            <td class="text-right font-bold text-xs item-gross-display">${formatCurrency(t.brutto_ar, cur)}</td>
+            <td class="text-center">
+              <button class="btn btn-ghost btn-xs text-error btn-circle remove-item-btn" data-index="${i}">&times;</button>
+            </td>
+          `;
+          editItemsTbody.appendChild(tr);
+        });
+
+        editItemsTbody
+          .querySelectorAll(".item-qty, .item-unit, .item-vat-rate")
+          .forEach((input) => {
+            input.addEventListener("input", (e) => {
+              const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+              const row = (e.target as HTMLElement).closest("tr");
+              if (!row || !currentEditingData || !currentEditingData.tetelek[idx]) return;
+
+              const qty = parseFloat((row.querySelector(".item-qty") as HTMLInputElement).value) || 0;
+              const unit = parseFloat((row.querySelector(".item-unit") as HTMLInputElement).value) || 0;
+              const vatRate = parseFloat((row.querySelector(".item-vat-rate") as HTMLInputElement).value) || 0;
+
+              const net = qty * unit;
+              const vat = net * (vatRate / 100);
+              const gross = net + vat;
+
+              currentEditingData.tetelek[idx].mennyiseg = qty;
+              currentEditingData.tetelek[idx].egysegar = unit;
+              currentEditingData.tetelek[idx].afa_szazalek = vatRate;
+              currentEditingData.tetelek[idx].netto_ar = net;
+              currentEditingData.tetelek[idx].afa_ertek = vat;
+              currentEditingData.tetelek[idx].brutto_ar = gross;
+
+              const selectedCur = editPenznem.value || "HUF";
+              (row.querySelector(".item-net-display") as HTMLElement).textContent = formatCurrency(net, selectedCur);
+              (row.querySelector(".item-vat-display") as HTMLElement).textContent = formatCurrency(vat, selectedCur);
+              (row.querySelector(".item-gross-display") as HTMLElement).textContent = formatCurrency(gross, selectedCur);
+
+              recalculateModalTotals();
+            });
+          });
+
+        editItemsTbody.querySelectorAll(".item-name").forEach((input) => {
+          input.addEventListener("input", (e) => {
+            const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+            if (currentEditingData && currentEditingData.tetelek[idx]) {
+              currentEditingData.tetelek[idx].megnevezes = (e.target as HTMLInputElement).value;
+            }
+          });
+        });
+
+        editItemsTbody.querySelectorAll(".remove-item-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            const idx = Number((e.target as HTMLElement).getAttribute("data-index"));
+            if (currentEditingData) {
+              currentEditingData.tetelek.splice(idx, 1);
+              renderEditItems();
+              recalculateModalTotals();
+            }
+          });
+        });
+      }
+
+      addItemBtn.addEventListener("click", () => {
+        if (!currentEditingData) return;
+        currentEditingData.tetelek = currentEditingData.tetelek || [];
+        currentEditingData.tetelek.push({
+          megnevezes: "Új tétel",
+          mennyiseg: 1,
+          egysegar: 0,
+          afa_szazalek: 27,
+          netto_ar: 0,
+          afa_ertek: 0,
+          brutto_ar: 0,
+        });
+        renderEditItems();
+        recalculateModalTotals();
+      });
+
+      function recalculateModalTotals() {
+        if (!currentEditingData) return;
+
+        const cur = editPenznem.value || "HUF";
+        let sumNetto = 0;
+        let sumAfa = 0;
+        let sumBrutto = 0;
+
+        (currentEditingData.tetelek || []).forEach((t) => {
+          sumNetto += Number(t.netto_ar || 0);
+          sumAfa += Number(t.afa_ertek || 0);
+          sumBrutto += Number(t.brutto_ar || 0);
+        });
+
+        currentEditingData.vegosszeg_netto = sumNetto;
+        currentEditingData.vegosszeg_afa = sumAfa;
+        currentEditingData.vegosszeg_brutto = sumBrutto;
+        currentEditingData.penznem = cur;
+
+        displayNetto.textContent = formatCurrency(sumNetto, cur);
+        displayAfa.textContent = formatCurrency(sumAfa, cur);
+        displayBrutto.textContent = formatCurrency(sumBrutto, cur);
+
+        const mathValid = Math.abs(sumNetto + sumAfa - sumBrutto) <= 1.0;
+        if (mathValid) {
+          modalValidBadge.className = "badge badge-success";
+          modalValidBadge.textContent = "✓ Valid";
+          modalWarningBox.classList.add("hidden");
+        } else {
+          modalValidBadge.className = "badge badge-warning";
+          modalValidBadge.textContent = "⚠ Eltérés";
+          modalWarningBox.textContent = `A számított nettó (${sumNetto.toFixed(2)}) és áfa (${sumAfa.toFixed(2)}) nem egyezik a bruttóval (${sumBrutto.toFixed(2)}).`;
+          modalWarningBox.classList.remove("hidden");
+        }
+      }
+
+      editPenznem.addEventListener("change", () => {
+        if (currentEditingData) {
+          currentEditingData.penznem = editPenznem.value;
+        }
+        renderEditItems();
+        recalculateModalTotals();
+      });
+
+      saveChangesBtn.addEventListener("click", () => {
+        if (activeEditIndex === -1 || !currentEditingData) return;
+
+        currentEditingData.kiallito_neve = editKiallitoNeve.value;
+        currentEditingData.kiallito_adoszam = editKiallitoAdoszam.value;
+        currentEditingData.szamlaszam = editSzamlaszam.value;
+        currentEditingData.vevo_neve = editVevoNeve.value;
+        currentEditingData.kelt_datum = editKeltDatum.value;
+        currentEditingData.fizetesi_hatarido = editFizetesiHatarido.value;
+        currentEditingData.penznem = editPenznem.value.toUpperCase();
+        currentEditingData.kiallito_orszag = editOrszag.value.toUpperCase();
+
+        lastProcessedResults[activeEditIndex].data = currentEditingData;
+        lastProcessedResults[activeEditIndex].isValid = true;
+        lastProcessedResults[activeEditIndex].errors = [];
+
+        renderResultsCards();
+        editModal.close();
+      });
+
+      cancelModalBtn.addEventListener("click", () => {
+        editModal.close();
+      });
+
+      // KÁRTYÁK MEGJELENÍTÉSE
+      function renderResultsCards() {
+        resultsWrapper.innerHTML = "";
+
+        lastProcessedResults.forEach(
+          (item: SingleInvoiceResult, index: number) => {
+            const card = document.createElement("div");
+            card.className =
+              "card bg-base-100 shadow-xl border border-base-200 hover:border-primary/40 transition-colors";
+
+            if (!item.success || !item.data) {
+              card.innerHTML = `
+              <div class="card-body">
+                <div class="flex justify-between items-center">
+                  <h3 class="font-bold text-error">Hiba: ${item.source}</h3>
+                  <span class="badge badge-error">Sikertelen</span>
+                </div>
+                <p class="text-xs text-base-content/70 mt-2">${item.errors.join(", ")}</p>
+              </div>
+            `;
+            } else {
+              const d = item.data;
+              const currency = d.penznem || "HUF";
+
+              const rows = (d.tetelek || [])
+                .map((t) => {
+                  const afaErtek =
+                    t.afa_ertek !== undefined && t.afa_ertek !== null
+                      ? t.afa_ertek
+                      : Number(t.brutto_ar || 0) - Number(t.netto_ar || 0);
+
+                  return `
+                <tr>
+                  <td class="font-medium">${t.megnevezes || "-"}</td>
+                  <td class="text-right">${t.mennyiseg}</td>
+                  <td class="text-right">${formatCurrency(t.egysegar, currency)}</td>
+                  <td class="text-right"><span class="badge badge-ghost badge-sm">${t.afa_szazalek}%</span></td>
+                  <td class="text-right">${formatCurrency(t.netto_ar, currency)}</td>
+                  <td class="text-right text-base-content/70">${formatCurrency(afaErtek, currency)}</td>
+                  <td class="text-right font-semibold">${formatCurrency(t.brutto_ar, currency)}</td>
+                </tr>
+              `;
+                })
+                .join("");
+
+              const errorAlert = !item.isValid
+                ? `
+              <div class="alert alert-warning text-xs p-2 rounded-lg mt-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                <span><b>Figyelmeztetés:</b> ${item.errors.join(" | ")}</span>
+              </div>
+            `
+                : "";
+
+              card.innerHTML = `
+              <div class="card-body space-y-4">
+                <div class="flex flex-wrap justify-between items-center border-b border-base-200 pb-3 gap-2">
+                  <div>
+                    <h3 class="font-bold text-lg text-primary">
+                      ${d.kiallito_neve || "Ismeretlen kiállító"}
+                      ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1">${d.kiallito_orszag}</span>` : ""}
+                    </h3>
+                    <div class="text-xs text-base-content/60">
+                      Számlaszám: <span class="font-mono font-semibold">${d.szamlaszam || "Nincs"}</span> 
+                      ${d.kiallito_adoszam ? `| Adószám: ${d.kiallito_adoszam}` : ""}
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-accent font-bold">${currency}</span>
+                    <span class="badge ${item.isValid ? "badge-success" : "badge-warning"}">
+                      ${item.isValid ? "✓ Valid" : "⚠ Ellenőrizendő"}
+                    </span>
+                    <button class="btn btn-sm btn-outline btn-primary edit-card-btn ml-2" data-index="${index}">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Ellenőrzés / Szerkesztés
+                    </button>
+                  </div>
+                </div>
+
+                ${errorAlert}
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs bg-base-200/50 p-3 rounded-box">
+                  <div><span class="text-base-content/50 block">Vevő:</span> <span class="font-medium">${d.vevo_neve || "-"}</span></div>
+                  <div><span class="text-base-content/50 block">Kelt:</span> <span class="font-medium">${d.kelt_datum || "-"}</span></div>
+                  <div><span class="text-base-content/50 block">Fiz. határidő:</span> <span class="font-medium">${d.fizetesi_hatarido || "-"}</span></div>
+                  <div><span class="text-base-content/50 block">Nettó összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_netto, currency)}</span></div>
+                  <div><span class="text-base-content/50 block">ÁFA összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_afa, currency)}</span></div>
+                </div>
+
+                <div class="flex justify-between items-center bg-base-200 px-4 py-2 rounded-lg">
+                  <span class="text-sm font-semibold text-base-content/80">Fizetendő bruttó végösszeg:</span>
+                  <span class="text-lg font-bold text-success">${formatCurrency(d.vegosszeg_brutto, currency)}</span>
+                </div>
+
+                <div class="overflow-x-auto border border-base-200 rounded-lg">
+                  <table class="table table-xs table-zebra w-full">
+                    <thead class="bg-base-200/60">
+                      <tr>
+                        <th>Tétel</th>
+                        <th class="text-right">Mennyiség</th>
+                        <th class="text-right">Egységár</th>
+                        <th class="text-right">ÁFA %</th>
+                        <th class="text-right">Nettó</th>
+                        <th class="text-right">ÁFA érték</th>
+                        <th class="text-right">Bruttó</th>
+                      </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                  </table>
+                </div>
+              </div>
+            `;
+
+              card
+                .querySelector(".edit-card-btn")
+                ?.addEventListener("click", () => {
+                  openEditModal(index);
+                });
+            }
+            resultsWrapper.appendChild(card);
+          },
+        );
+      }
+
+      // CSV EXPORT
       function exportToCSV(results: SingleInvoiceResult[]) {
         const rows: string[][] = [
           [
@@ -404,6 +891,10 @@ https://pelda.hu/szamla2.png"
 
             if (d.tetelek && d.tetelek.length > 0) {
               d.tetelek.forEach((item) => {
+                const afaErtek =
+                  item.afa_ertek !== undefined
+                    ? item.afa_ertek
+                    : Number(item.brutto_ar || 0) - Number(item.netto_ar || 0);
                 rows.push([
                   `"${d.szamlaszam || ""}"`,
                   `"${d.kiallito_neve || ""}"`,
@@ -418,7 +909,7 @@ https://pelda.hu/szamla2.png"
                   String(item.egysegar || 0),
                   String(item.afa_szazalek || 0),
                   String(item.netto_ar || 0),
-                  String(item.afa_ertek || 0),
+                  String(afaErtek || 0),
                   String(item.brutto_ar || 0),
                   String(d.vegosszeg_brutto || 0),
                   res.isValid ? "Érvényes" : "Összegzési eltérés",
@@ -470,15 +961,12 @@ https://pelda.hu/szamla2.png"
         }
       });
 
-      // Feldolgozás Indítása
       processBtn.addEventListener("click", async () => {
         const items: ImageInputItem[] = [];
 
         if (currentMode === "upload") {
           if (selectedFiles.length === 0) {
-            alert(
-              "Válassz ki, dobj be vagy illessz be (Ctrl+V) legalább egy fájlt!",
-            );
+            alert("Válassz ki, dobj be vagy illessz be (Ctrl+V) legalább egy képet!");
             return;
           }
 
@@ -505,6 +993,8 @@ https://pelda.hu/szamla2.png"
             items.push({ type: "url", data: u });
           }
         }
+
+        inputItemsCache = items;
 
         processBtn.disabled = true;
         processBtn.innerHTML =
@@ -535,115 +1025,10 @@ https://pelda.hu/szamla2.png"
 
           statusAlert.className =
             "flex flex-col md:flex-row justify-between items-center alert alert-success shadow-lg gap-4 block";
-          statusMessage.textContent = `Összesen ${json.total} számla feldolgozva.`;
+          statusMessage.textContent = `Összesen ${json.total} számla sikeresen feldolgozva.`;
           exportCsvBtn.classList.remove("hidden");
 
-          json.results.forEach((item: SingleInvoiceResult) => {
-            const card = document.createElement("div");
-            card.className =
-              "card bg-base-100 shadow-xl border border-base-200";
-
-            if (!item.success || !item.data) {
-              card.innerHTML = `
-                <div class="card-body">
-                  <div class="flex justify-between items-center">
-                    <h3 class="font-bold text-error">Hiba: ${item.source}</h3>
-                    <span class="badge badge-error">Sikertelen</span>
-                  </div>
-                  <p class="text-xs text-base-content/70 mt-2">${item.errors.join(", ")}</p>
-                </div>
-              `;
-            } else {
-              const d = item.data;
-              const currency = d.penznem || "HUF";
-
-              const rows = (d.tetelek || [])
-                .map((t) => {
-                  const afaErtek =
-                    t.afa_ertek !== undefined && t.afa_ertek !== null
-                      ? t.afa_ertek
-                      : Number(t.brutto_ar || 0) - Number(t.netto_ar || 0);
-
-                  return `
-                    <tr>
-                      <td class="font-medium">${t.megnevezes || "-"}</td>
-                      <td class="text-right">${t.mennyiseg}</td>
-                      <td class="text-right">${formatCurrency(t.egysegar, currency)}</td>
-                      <td class="text-right"><span class="badge badge-ghost badge-sm">${t.afa_szazalek}%</span></td>
-                      <td class="text-right">${formatCurrency(t.netto_ar, currency)}</td>
-                      <td class="text-right text-base-content/70">${formatCurrency(afaErtek, currency)}</td>
-                      <td class="text-right font-semibold">${formatCurrency(t.brutto_ar, currency)}</td>
-                    </tr>
-                  `;
-                })
-                .join("");
-
-              const errorAlert = !item.isValid
-                ? `
-                <div class="alert alert-warning text-xs p-2 rounded-lg mt-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                  <span><b>Figyelmeztetés:</b> ${item.errors.join(" | ")}</span>
-                </div>
-              `
-                : "";
-
-              card.innerHTML = `
-                <div class="card-body space-y-4">
-                  <div class="flex flex-wrap justify-between items-center border-b border-base-200 pb-3 gap-2">
-                    <div>
-                      <h3 class="font-bold text-lg text-primary">
-                        ${d.kiallito_neve || "Ismeretlen kiállító"}
-                        ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1">${d.kiallito_orszag}</span>` : ""}
-                      </h3>
-                      <div class="text-xs text-base-content/60">
-                        Számlaszám: <span class="font-mono font-semibold">${d.szamlaszam || "Nincs"}</span> 
-                        ${d.kiallito_adoszam ? `| Adószám: ${d.kiallito_adoszam}` : ""}
-                      </div>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <span class="badge badge-accent font-bold">${currency}</span>
-                      <span class="badge ${item.isValid ? "badge-success" : "badge-warning"}">
-                        ${item.isValid ? "✓ Valid" : "⚠ Ellenőrizendő"}
-                      </span>
-                    </div>
-                  </div>
-
-                  ${errorAlert}
-
-                  <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs bg-base-200/50 p-3 rounded-box">
-                    <div><span class="text-base-content/50 block">Vevő:</span> <span class="font-medium">${d.vevo_neve || "-"}</span></div>
-                    <div><span class="text-base-content/50 block">Kelt:</span> <span class="font-medium">${d.kelt_datum || "-"}</span></div>
-                    <div><span class="text-base-content/50 block">Fiz. határidő:</span> <span class="font-medium">${d.fizetesi_hatarido || "-"}</span></div>
-                    <div><span class="text-base-content/50 block">Nettó összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_netto, currency)}</span></div>
-                    <div><span class="text-base-content/50 block">ÁFA összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_afa, currency)}</span></div>
-                  </div>
-
-                  <div class="flex justify-between items-center bg-base-200 px-4 py-2 rounded-lg">
-                    <span class="text-sm font-semibold text-base-content/80">Fizetendő bruttó végösszeg:</span>
-                    <span class="text-lg font-bold text-success">${formatCurrency(d.vegosszeg_brutto, currency)}</span>
-                  </div>
-
-                  <div class="overflow-x-auto border border-base-200 rounded-lg">
-                    <table class="table table-xs table-zebra w-full">
-<thead class="bg-base-200/60">
-  <tr>
-    <th>Tétel</th>
-    <th class="text-right">Mennyiség</th>
-    <th class="text-right">Egységár</th>
-    <th class="text-right">ÁFA %</th>
-    <th class="text-right">Nettó</th>
-    <th class="text-right">ÁFA érték</th>
-    <th class="text-right">Bruttó</th>
-  </tr>
-</thead>
-                      <tbody>${rows}</tbody>
-                    </table>
-                  </div>
-                </div>
-              `;
-            }
-            resultsWrapper.appendChild(card);
-          });
+          renderResultsCards();
         } catch (err: any) {
           statusAlert.className = "alert alert-error shadow-lg block";
           statusMessage.textContent =

@@ -156,8 +156,9 @@ import '../styles/global.css';
         statusAlert.className = 'hidden';
         resultsWrapper.innerHTML = '';
 
+        const API_BASE = import.meta.env.PUBLIC_API_URL || 'http://localhost:3000'
         try {
-          const res = await fetch('http://localhost:3000/api/parse-batch', {
+          const res = await fetch(API_BASE, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ items }),

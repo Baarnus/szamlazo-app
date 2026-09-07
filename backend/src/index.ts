@@ -1,9 +1,14 @@
+// backend/src/index.ts
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import dotenv from 'dotenv';
 import { z } from 'zod';
+import { desc, eq } from 'drizzle-orm';
+import { db } from './db/index.js';
+import { invoices } from './db/schema.js';
+import { initDatabase } from './db/index.js';
 import type {
   InvoiceData,
   ImageInputItem,
@@ -46,31 +51,29 @@ export const InvoiceDataSchema = z.object({
   vegosszeg_afa: z.coerce.number().default(0),
   vegosszeg_brutto: z.coerce.number().default(0),
 })
-.superRefine((data, ctx) => {
-  const currency = data.penznem || 'HUF';
+  .superRefine((data, ctx) => {
+    const currency = data.penznem || 'HUF';
 
-  // 1. Fejléc szintű egyenlet: Nettó + ÁFA = Bruttó
-  const headerCalculatedGross = Number(data.vegosszeg_netto || 0) + Number(data.vegosszeg_afa || 0);
-  if (Math.abs(headerCalculatedGross - Number(data.vegosszeg_brutto || 0)) > 1.0) {
-    ctx.addIssue({
-      code: z.ZodIssueCode.custom,
-      message: `Fejléc ÁFA hiba: Nettó (${data.vegosszeg_netto}) + ÁFA (${data.vegosszeg_afa}) nem egyezik a Bruttó végösszeggel (${data.vegosszeg_brutto} ${currency}).`,
-      path: ['vegosszeg_brutto'],
-    });
-  }
-
-  // 2. Tételek összege vs. Fejléc végösszeg
-  if (data.tetelek && data.tetelek.length > 0) {
-    const itemsGrossSum = data.tetelek.reduce((sum, item) => sum + Number(item.brutto_ar || 0), 0);
-    if (Math.abs(itemsGrossSum - Number(data.vegosszeg_brutto || 0)) > 1.0) {
+    const headerCalculatedGross = Number(data.vegosszeg_netto || 0) + Number(data.vegosszeg_afa || 0);
+    if (Math.abs(headerCalculatedGross - Number(data.vegosszeg_brutto || 0)) > 1.0) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
-        message: `Összegzési eltérés: a tételek összege (${itemsGrossSum.toFixed(2)} ${currency}) nem egyezik a fejléc bruttójával (${data.vegosszeg_brutto} ${currency}).`,
-        path: ['tetelek'],
+        message: `Fejléc ÁFA hiba: Nettó (${data.vegosszeg_netto}) + ÁFA (${data.vegosszeg_afa}) nem egyezik a Bruttó végösszeggel (${data.vegosszeg_brutto} ${currency}).`,
+        path: ['vegosszeg_brutto'],
       });
     }
-  }
-});
+
+    if (data.tetelek && data.tetelek.length > 0) {
+      const itemsGrossSum = data.tetelek.reduce((sum, item) => sum + Number(item.brutto_ar || 0), 0);
+      if (Math.abs(itemsGrossSum - Number(data.vegosszeg_brutto || 0)) > 1.0) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: `Összegzési eltérés: a tételek összege (${itemsGrossSum.toFixed(2)} ${currency}) nem egyezik a fejléc bruttójával (${data.vegosszeg_brutto} ${currency}).`,
+          path: ['tetelek'],
+        });
+      }
+    }
+  });
 
 // ==========================================
 // 2. KÉP FELDOLGOZÁS ÉS BASE64 FELOLDÁS
@@ -141,10 +144,11 @@ JSON struktúra:
   "vegosszeg_brutto": number
 }`;
 
-/**
- * Egyetlen számlakép feldolgozása a Gemini modellel és Zod validációval
- */
-async function processSingleInvoice(item: ImageInputItem, index: number, apiKey: string): Promise<SingleInvoiceResult> {
+async function processSingleInvoice(
+  item: ImageInputItem, 
+  index: number, 
+  apiKey: string
+): Promise<SingleInvoiceResult & { dbId?: string | undefined }> {
   const sourceLabel = item.type === 'url' ? item.data : `Feltöltött fájl #${index + 1}`;
   try {
     const { pureBase64, mimeType } = await resolveImageToBase64(item);
@@ -175,25 +179,34 @@ async function processSingleInvoice(item: ImageInputItem, index: number, apiKey:
     const parsedJson = JSON.parse(rawText);
     const zodResult = InvoiceDataSchema.safeParse(parsedJson);
 
-    if (!zodResult.success) {
-      const errorMessages = zodResult.error.issues.map((issue) => issue.message);
-      return {
-        index,
+    const isValid = zodResult.success;
+    const finalData = (isValid ? zodResult.data : parsedJson) as InvoiceData;
+    const errorMessages = !isValid ? zodResult.error.issues.map((issue) => issue.message) : [];
+
+    // AUTOMATIKUS MENTÉS POSTGRESQL-BE
+    let dbId: string | undefined;
+    try {
+      const inserted = await db.insert(invoices).values({
         source: sourceLabel,
-        success: true,
-        isValid: false,
-        errors: errorMessages,
-        data: parsedJson as InvoiceData,
-      };
+        imageUrl: item.type === 'url' ? item.data : `data:${mimeType};base64,${pureBase64}`,
+        data: finalData,
+        isValid: isValid,
+        status: isValid ? 'processed' : 'needs_review',
+      }).returning({ id: invoices.id });
+
+      dbId = inserted[0]?.id;
+    } catch (dbErr: any) {
+      console.error('Adatbázis mentési hiba:', dbErr.message);
     }
 
     return {
       index,
       source: sourceLabel,
       success: true,
-      isValid: true,
-      errors: [],
-      data: zodResult.data as InvoiceData,
+      isValid,
+      errors: errorMessages,
+      data: finalData,
+      dbId,
     };
   } catch (err: any) {
     return {
@@ -210,7 +223,7 @@ async function processSingleInvoice(item: ImageInputItem, index: number, apiKey:
 // 3. API VÉGPONTOK
 // ==========================================
 
-// SSE Streaming Végpont (Részletes befejezési sorrend loggal)
+// SSE Streaming Végpont
 app.post('/api/parse-batch-stream', async (c) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -228,28 +241,26 @@ app.post('/api/parse-batch-stream', async (c) => {
     return c.json({ error: 'Egyszerre maximum 10 kép dolgozható fel.' }, 400);
   }
 
-  console.log(`\n🚀 [SSE BATCH INDÍTVA] Összesen ${items.length} db számla feldolgozása kezdődik párhuzamosan...`);
+  console.log(`\n🚀 [SSE BATCH INDÍTVA] ${items.length} db számla feldolgozása & mentése PostgreSQL-be...`);
   const startTime = Date.now();
   let finishedOrder = 0;
 
   return streamSSE(c, async (stream) => {
-    // 1. Kezdés jelzése a kliensnek
     await stream.writeSSE({
       event: 'start',
       data: JSON.stringify({ total: items.length }),
     });
 
-    // 2. Párhuzamos feldolgozás – ahogy egy szál kész, azonnal logoljuk és küldjük
     const tasks = items.map(async (item, index) => {
       const itemStart = Date.now();
       const result = await processSingleInvoice(item, index, apiKey);
-      
+
       finishedOrder++;
       const duration = ((Date.now() - itemStart) / 1000).toFixed(2);
       const invoiceName = result.data?.kiallito_neve || result.source;
       const statusIcon = result.success ? (result.isValid ? '✅' : '⚠️') : '❌';
 
-      console.log(`[#${finishedOrder}. elkészült] ${statusIcon} Eredeti index: #${index + 1} | Partner: "${invoiceName}" | Idő: ${duration}s`);
+      console.log(`[#${finishedOrder}. elkészült] ${statusIcon} DB ID: ${result.dbId || 'N/A'} | Partner: "${invoiceName}" | Idő: ${duration}s`);
 
       await stream.writeSSE({
         event: 'invoice-parsed',
@@ -265,9 +276,8 @@ app.post('/api/parse-batch-stream', async (c) => {
     await Promise.all(tasks);
 
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`🏁 [SSE BATCH KÉSZ] Mind a(z) ${items.length} számla befejezve. Teljes idő: ${totalDuration}s\n`);
+    console.log(`🏁 [SSE BATCH KÉSZ] Mind a(z) ${items.length} számla elmentve az adatbázisba. Idő: ${totalDuration}s\n`);
 
-    // 3. Befejezés jelzése
     await stream.writeSSE({
       event: 'done',
       data: JSON.stringify({ success: true, totalDuration }),
@@ -275,34 +285,43 @@ app.post('/api/parse-batch-stream', async (c) => {
   });
 });
 
-// Hagyományos HTTP Végpont (Kompatibilitás megtartásához)
-app.post('/api/parse-batch', async (c) => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    return c.json<BatchParseInvoiceResponse>({ success: false, total: 0, results: [], error: 'GEMINI_API_KEY hiányzik a szerveren.' }, 500);
+// Korábbi számlák lekérdezése adatbázisból (0 Ft AI költség)
+app.get('/api/invoices', async (c) => {
+  try {
+    const list = await db.select().from(invoices).orderBy(desc(invoices.createdAt)).limit(50);
+    return c.json({ success: true, count: list.length, invoices: list });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
   }
+});
 
-  const body = await c.req.json<{ items: ImageInputItem[] }>();
-  const items = body?.items || [];
+// Számla adatainak frissítése / javítása a Split View-ból (0 Ft AI költség!)
+app.patch('/api/invoices/:id', async (c) => {
+  try {
+    const id = c.req.param('id');
+    const body = await c.req.json<{ data: InvoiceData; isValid?: boolean }>();
 
-  if (items.length === 0) {
-    return c.json<BatchParseInvoiceResponse>({ success: false, total: 0, results: [], error: 'Nincs megadva feldolgozandó kép.' }, 400);
+    if (!body.data) {
+      return c.json({ success: false, error: 'Hiányzó számlaadatok.' }, 400);
+    }
+
+    await db.update(invoices)
+      .set({
+        data: body.data,
+        isValid: body.isValid !== undefined ? body.isValid : true,
+        status: 'reviewed',
+        updatedAt: new Date(),
+      })
+      .where(eq(invoices.id, id));
+
+    return c.json({ success: true, message: 'Számla sikeresen frissítve az adatbázisban.' });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
   }
-
-  if (items.length > 10) {
-    return c.json<BatchParseInvoiceResponse>({ success: false, total: items.length, results: [], error: 'Egyszerre maximum 10 kép dolgozható fel.' }, 400);
-  }
-
-  const tasks = items.map((item, index) => processSingleInvoice(item, index, apiKey));
-  const results = await Promise.all(tasks);
-
-  return c.json<BatchParseInvoiceResponse>({
-    success: true,
-    total: results.length,
-    results,
-  });
 });
 
 const port = Number(process.env.PORT) || 3000;
-console.log(`Backend fut a porton: ${port}`);
-serve({ fetch: app.fetch, port });
+initDatabase().then(() => {
+  console.log(`Backend fut a porton: ${port}`);
+  serve({ fetch: app.fetch, port });
+});

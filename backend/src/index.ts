@@ -5,10 +5,11 @@ import { cors } from 'hono/cors';
 import { streamSSE } from 'hono/streaming';
 import dotenv from 'dotenv';
 import { z } from 'zod';
-import { desc, eq } from 'drizzle-orm';
-import { db } from './db/index.js';
-import { invoices } from './db/schema.js';
-import { initDatabase } from './db/index.js';
+import { desc, eq, and, sql } from 'drizzle-orm';
+import { db, initDatabase } from './db/index.js';
+import { invoices, users } from './db/schema.js';
+import { authRouter, getAuthUser } from './auth.js';
+import { uploadInvoiceBuffer, getInvoiceImageUrl } from './lib/s3.js';
 import type {
   InvoiceData,
   ImageInputItem,
@@ -20,6 +21,9 @@ dotenv.config();
 
 const app = new Hono();
 app.use('/*', cors());
+
+// Auth Router bekötése
+app.route('/api/auth', authRouter);
 
 // ==========================================
 // 1. ZOD SÉMÁK ÉS MATEMATIKAI VALIDÁCIÓ
@@ -76,40 +80,37 @@ export const InvoiceDataSchema = z.object({
   });
 
 // ==========================================
-// 2. KÉP FELDOLGOZÁS ÉS BASE64 FELOLDÁS
+// 2. KÉP FELDOLGOZÁS & MINIO S3 TÁROLÁS
 // ==========================================
 
-async function resolveImageToBase64(item: ImageInputItem): Promise<{ pureBase64: string; mimeType: string }> {
+async function resolveImageBuffer(item: ImageInputItem): Promise<{ buffer: Buffer; mimeType: string }> {
   if (item.type === 'base64') {
     const pureBase64 = (item.data.includes('base64,') ? item.data.split('base64,')[1] : item.data) || '';
-    return { pureBase64, mimeType: item.mimeType || 'image/jpeg' };
+    const buffer = Buffer.from(pureBase64, 'base64');
+    return { buffer, mimeType: item.mimeType || 'image/jpeg' };
   }
 
-  try {
-    const response = await fetch(item.data, {
-      headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
-        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
-      }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Kép letöltési hiba: HTTP ${response.status} (${response.statusText}).`);
+  const response = await fetch(item.data, {
+    headers: {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+      'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
     }
+  });
 
-    const arrayBuffer = await response.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const rawHeaderType = response.headers.get('content-type');
-    let mimeType = rawHeaderType || item.mimeType || 'image/jpeg';
-    if (mimeType.includes(';')) {
-      mimeType = mimeType.split(';')[0]?.trim() || 'image/jpeg';
-    }
-
-    return { pureBase64: buffer.toString('base64'), mimeType };
-  } catch (err: any) {
-    throw new Error(`Nem sikerült elérni a megadott kép URL-t: ${err.message}`);
+  if (!response.ok) {
+    throw new Error(`Kép letöltési hiba: HTTP ${response.status} (${response.statusText}).`);
   }
+
+  const arrayBuffer = await response.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+
+  const rawHeaderType = response.headers.get('content-type');
+  let mimeType = rawHeaderType || item.mimeType || 'image/jpeg';
+  if (mimeType.includes(';')) {
+    mimeType = mimeType.split(';')[0]?.trim() || 'image/jpeg';
+  }
+
+  return { buffer, mimeType };
 }
 
 const prompt = `Elemezd a számlát (magyar vagy nemzetközi) és válaszolj KIZÁRÓLAG tiszta JSON formátumban!
@@ -147,12 +148,24 @@ JSON struktúra:
 async function processSingleInvoice(
   item: ImageInputItem, 
   index: number, 
-  apiKey: string
+  apiKey: string,
+  userId?: string
 ): Promise<SingleInvoiceResult & { dbId?: string | undefined }> {
   const sourceLabel = item.type === 'url' ? item.data : `Feltöltött fájl #${index + 1}`;
   try {
-    const { pureBase64, mimeType } = await resolveImageToBase64(item);
+    const { buffer, mimeType } = await resolveImageBuffer(item);
+    const base64Data = buffer.toString('base64');
 
+    // 1. Kép azonnali mentése a MinIO tárolóba
+    let storedImageUrl = item.data;
+    try {
+      const s3Key = await uploadInvoiceBuffer(buffer, mimeType, userId);
+      storedImageUrl = s3Key; // Adatbázisba a könnyű s3Key kerül, nem megabájtos base64
+    } catch (s3Err: any) {
+      console.warn('⚠️ MinIO mentési hiba, fallback helyi azonosítóra:', s3Err.message);
+    }
+
+    // 2. AI feldolgozás (Gemini)
     const geminiRes = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
       {
@@ -162,7 +175,7 @@ async function processSingleInvoice(
           'x-goog-api-key': apiKey.trim()
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: pureBase64 } }] }],
+          contents: [{ parts: [{ text: prompt }, { inline_data: { mime_type: mimeType, data: base64Data } }] }],
           generationConfig: { response_mime_type: 'application/json', temperature: 0.1 },
         }),
       }
@@ -183,12 +196,13 @@ async function processSingleInvoice(
     const finalData = (isValid ? zodResult.data : parsedJson) as InvoiceData;
     const errorMessages = !isValid ? zodResult.error.issues.map((issue) => issue.message) : [];
 
-    // AUTOMATIKUS MENTÉS POSTGRESQL-BE
+    // 3. PostgreSQL mentés
     let dbId: string | undefined;
     try {
       const inserted = await db.insert(invoices).values({
+        userId: userId || null,
         source: sourceLabel,
-        imageUrl: item.type === 'url' ? item.data : `data:${mimeType};base64,${pureBase64}`,
+        imageUrl: storedImageUrl,
         data: finalData,
         isValid: isValid,
         status: isValid ? 'processed' : 'needs_review',
@@ -223,11 +237,16 @@ async function processSingleInvoice(
 // 3. API VÉGPONTOK
 // ==========================================
 
-// SSE Streaming Végpont
 app.post('/api/parse-batch-stream', async (c) => {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return c.json({ error: 'GEMINI_API_KEY hiányzik a szerveren.' }, 500);
+  }
+
+  // 1. Felhasználó azonosítása
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) {
+    return c.json({ error: 'A számlafeldolgozáshoz kérjük, jelentkezz be!' }, 401);
   }
 
   const body = await c.req.json<{ items: ImageInputItem[] }>();
@@ -241,19 +260,26 @@ app.post('/api/parse-batch-stream', async (c) => {
     return c.json({ error: 'Egyszerre maximum 10 kép dolgozható fel.' }, 400);
   }
 
-  console.log(`\n🚀 [SSE BATCH INDÍTVA] ${items.length} db számla feldolgozása & mentése PostgreSQL-be...`);
+  // 2. Kredit egyenleg ellenőrzése
+  if (user.monthlyCredits < items.length) {
+    return c.json({
+      error: `Nincs elegendő kredited! Szükséges: ${items.length}, Rendelkezésre áll: ${user.monthlyCredits}.`
+    }, 402);
+  }
+
+  console.log(`\n🚀 [SSE BATCH INDÍTVA] Felhasználó: ${user.email} | ${items.length} db számla feldolgozása...`);
   const startTime = Date.now();
   let finishedOrder = 0;
 
   return streamSSE(c, async (stream) => {
     await stream.writeSSE({
       event: 'start',
-      data: JSON.stringify({ total: items.length }),
+      data: JSON.stringify({ total: items.length, currentCredits: user.monthlyCredits }),
     });
 
     const tasks = items.map(async (item, index) => {
       const itemStart = Date.now();
-      const result = await processSingleInvoice(item, index, apiKey);
+      const result = await processSingleInvoice(item, index, apiKey, user.id);
 
       finishedOrder++;
       const duration = ((Date.now() - itemStart) / 1000).toFixed(2);
@@ -273,30 +299,80 @@ app.post('/api/parse-batch-stream', async (c) => {
       return result;
     });
 
-    await Promise.all(tasks);
+    const results = await Promise.all(tasks);
+
+    // 3. ATOMI KREDITLEVONÁS A VÉGÉN: Csak a ténylegesen sikeres feldolgozásokért vonunk le kreditet
+    const successCount = results.filter((r) => r.success).length;
+    let remainingCredits = user.monthlyCredits;
+
+    if (successCount > 0) {
+      const [updatedUser] = await db.update(users)
+        .set({
+          monthlyCredits: sql`${users.monthlyCredits} - ${successCount}`,
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, user.id))
+        .returning({ monthlyCredits: users.monthlyCredits });
+
+      remainingCredits = updatedUser?.monthlyCredits ?? (user.monthlyCredits - successCount);
+    }
 
     const totalDuration = ((Date.now() - startTime) / 1000).toFixed(2);
-    console.log(`🏁 [SSE BATCH KÉSZ] Mind a(z) ${items.length} számla elmentve az adatbázisba. Idő: ${totalDuration}s\n`);
+    console.log(`🏁 [SSE BATCH KÉSZ] Feldolgozva: ${successCount}/${items.length} sikeres. Levont kredit: ${successCount}. Idő: ${totalDuration}s\n`);
 
     await stream.writeSSE({
       event: 'done',
-      data: JSON.stringify({ success: true, totalDuration }),
+      data: JSON.stringify({
+        success: true,
+        totalDuration,
+        consumedCredits: successCount,
+        remainingCredits
+      }),
     });
   });
 });
 
-// Korábbi számlák lekérdezése adatbázisból (0 Ft AI költség)
+// A számlák lekérdezése (a MinIO s3Key-ekből szükség esetén ideiglenes aláírt URL generálásával)
 app.get('/api/invoices', async (c) => {
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) {
+    return c.json({ success: false, error: 'Nincs bejelentkezve.' }, 401);
+  }
+
   try {
-    const list = await db.select().from(invoices).orderBy(desc(invoices.createdAt)).limit(50);
-    return c.json({ success: true, count: list.length, invoices: list });
+    const list = await db.select()
+      .from(invoices)
+      .where(eq(invoices.userId, user.id))
+      .orderBy(desc(invoices.createdAt))
+      .limit(50);
+
+    const invoicesWithUrls = await Promise.all(
+      list.map(async (inv) => {
+        let displayUrl = inv.imageUrl;
+        if (inv.imageUrl && !inv.imageUrl.startsWith('data:') && !inv.imageUrl.startsWith('http')) {
+          try {
+            displayUrl = await getInvoiceImageUrl(inv.imageUrl);
+          } catch {
+            displayUrl = inv.imageUrl;
+          }
+        }
+        return { ...inv, imageUrl: displayUrl };
+      })
+    );
+
+    return c.json({ success: true, count: invoicesWithUrls.length, invoices: invoicesWithUrls });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
   }
 });
 
-// Számla adatainak frissítése / javítása a Split View-ból (0 Ft AI költség!)
+// Számla javítása a Split View-ból
 app.patch('/api/invoices/:id', async (c) => {
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) {
+    return c.json({ success: false, error: 'Nincs bejelentkezve.' }, 401);
+  }
+
   try {
     const id = c.req.param('id');
     const body = await c.req.json<{ data: InvoiceData; isValid?: boolean }>();
@@ -312,7 +388,7 @@ app.patch('/api/invoices/:id', async (c) => {
         status: 'reviewed',
         updatedAt: new Date(),
       })
-      .where(eq(invoices.id, id));
+      .where(and(eq(invoices.id, id), eq(invoices.userId, user.id)));
 
     return c.json({ success: true, message: 'Számla sikeresen frissítve az adatbázisban.' });
   } catch (err: any) {

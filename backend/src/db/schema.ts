@@ -1,9 +1,20 @@
-import { pgTable, text, timestamp, boolean, jsonb } from 'drizzle-orm/pg-core';
+// backend/src/db/schema.ts
+import { pgTable, text, timestamp, boolean, jsonb, integer } from 'drizzle-orm/pg-core';
 import type { InvoiceData } from '../../../shared/types.js';
+
+export const users = pgTable('users', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  email: text('email').notNull().unique(),
+  passwordHash: text('password_hash').notNull(),
+  tier: text('tier').default('free').notNull(), // 'free' | 'pro'
+  monthlyCredits: integer('monthly_credits').default(15).notNull(), // Ingyenes kezdő számlakeret
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+});
 
 export const invoices = pgTable('invoices', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
-  userId: text('user_id'),
+  userId: text('user_id').references(() => users.id), // Kapcsolat a felhasználóhoz
   imageUrl: text('image_url'),
   source: text('source'),
   data: jsonb('data').$type<InvoiceData>().notNull(),
@@ -13,4 +24,5 @@ export const invoices = pgTable('invoices', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export type UserRecord = typeof users.$inferSelect;
 export type InvoiceRecord = typeof invoices.$inferSelect;

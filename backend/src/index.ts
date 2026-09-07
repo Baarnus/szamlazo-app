@@ -10,6 +10,7 @@ import { db, initDatabase } from './db/index.js';
 import { invoices, users } from './db/schema.js';
 import { authRouter, getAuthUser } from './auth.js';
 import { uploadInvoiceBuffer, getInvoiceImageUrl } from './lib/s3.js';
+import { billingRouter } from './billing.js';
 import type {
   InvoiceData,
   ImageInputItem,
@@ -24,6 +25,9 @@ app.use('/*', cors());
 
 // Auth Router bekötése
 app.route('/api/auth', authRouter);
+
+// Stripe billing
+app.route('/api/billing', billingRouter);
 
 // ==========================================
 // 1. ZOD SÉMÁK ÉS MATEMATIKAI VALIDÁCIÓ
@@ -160,7 +164,7 @@ async function processSingleInvoice(
     let storedImageUrl = item.data;
     try {
       const s3Key = await uploadInvoiceBuffer(buffer, mimeType, userId);
-      storedImageUrl = s3Key; // Adatbázisba a könnyű s3Key kerül, nem megabájtos base64
+      storedImageUrl = s3Key;
     } catch (s3Err: any) {
       console.warn('⚠️ MinIO mentési hiba, fallback helyi azonosítóra:', s3Err.message);
     }
@@ -301,7 +305,7 @@ app.post('/api/parse-batch-stream', async (c) => {
 
     const results = await Promise.all(tasks);
 
-    // 3. ATOMI KREDITLEVONÁS A VÉGÉN: Csak a ténylegesen sikeres feldolgozásokért vonunk le kreditet
+    // 3. ATOMI KREDITLEVONÁS A VÉGÉN: Csak a sikeres feldolgozásokért vonunk le kreditet
     const successCount = results.filter((r) => r.success).length;
     let remainingCredits = user.monthlyCredits;
 
@@ -332,7 +336,7 @@ app.post('/api/parse-batch-stream', async (c) => {
   });
 });
 
-// A számlák lekérdezése (a MinIO s3Key-ekből szükség esetén ideiglenes aláírt URL generálásával)
+// A számlák lekérdezése (a MinIO s3Key-ekből ideiglenes aláírt URL generálásával)
 app.get('/api/invoices', async (c) => {
   const user = await getAuthUser(c.req.header('Authorization'));
   if (!user) {
@@ -361,6 +365,139 @@ app.get('/api/invoices', async (c) => {
     );
 
     return c.json({ success: true, count: invoicesWithUrls.length, invoices: invoicesWithUrls });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
+  }
+});
+
+// ==========================================
+// KÖNYVELŐBARÁT CSV EXPORT VÉGPONT
+// ==========================================
+app.get('/api/invoices/export/csv', async (c) => {
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) {
+    return c.json({ success: false, error: 'Nincs bejelentkezve.' }, 401);
+  }
+
+  try {
+    const list = await db.select()
+      .from(invoices)
+      .where(eq(invoices.userId, user.id))
+      .orderBy(desc(invoices.createdAt));
+
+    const formatNumberForExcel = (num: number | undefined | null): string => {
+      if (num === undefined || num === null || isNaN(Number(num))) return '0';
+      return String(num).replace('.', ',');
+    };
+
+    const cleanField = (val: string | undefined | null): string => {
+      if (!val) return '""';
+      return `"${String(val).replace(/"/g, '""')}"`;
+    };
+
+    const headers = [
+      'Számlaszám',
+      'Kiállító',
+      'Kiállító Adószám',
+      'Ország',
+      'Vevő',
+      'Vevő Adószám',
+      'Kelt',
+      'Teljesítés Dátum',
+      'Fizetési Határidő',
+      'Pénznem',
+      'Tétel Megnevezés',
+      'Mennyiség',
+      'Egységár',
+      'Áfa %',
+      'Tétel Nettó',
+      'Tétel Áfa',
+      'Tétel Bruttó',
+      'Számla Végösszeg Nettó',
+      'Számla Végösszeg Áfa',
+      'Számla Végösszeg Bruttó',
+      'Státusz',
+      'Feltöltés Időpontja'
+    ];
+
+    const rows: string[] = [];
+
+    for (const inv of list) {
+      const d = inv.data as InvoiceData;
+      if (!d) continue;
+
+      const currency = d.penznem || 'HUF';
+      const statusLabel = inv.isValid ? 'Érvényes' : 'Összegzési eltérés';
+      const createdAtFormatted = inv.createdAt ? new Date(inv.createdAt).toISOString().slice(0, 10) : '';
+
+      const baseCols = [
+        cleanField(d.szamlaszam),
+        cleanField(d.kiallito_neve),
+        cleanField(d.kiallito_adoszam),
+        cleanField(d.kiallito_orszag || 'HU'),
+        cleanField(d.vevo_neve),
+        cleanField(d.vevo_adoszam),
+        cleanField(d.kelt_datum),
+        cleanField(d.teljesites_datum),
+        cleanField(d.fizetesi_hatarido),
+        cleanField(currency)
+      ];
+
+      const totalsCols = [
+        formatNumberForExcel(d.vegosszeg_netto),
+        formatNumberForExcel(d.vegosszeg_afa),
+        formatNumberForExcel(d.vegosszeg_brutto),
+        cleanField(statusLabel),
+        cleanField(createdAtFormatted)
+      ];
+
+      if (d.tetelek && d.tetelek.length > 0) {
+        for (const item of d.tetelek) {
+          const itemNetto = item.netto_ar !== undefined && item.netto_ar !== null
+            ? item.netto_ar
+            : (Number(item.mennyiseg || 1) * Number(item.egysegar || 0));
+
+          const itemAfa = item.afa_ertek !== undefined && item.afa_ertek !== null
+            ? item.afa_ertek
+            : (Number(item.brutto_ar || 0) - Number(itemNetto || 0));
+
+          const itemCols = [
+            cleanField(item.megnevezes),
+            formatNumberForExcel(item.mennyiseg || 1),
+            formatNumberForExcel(item.egysegar || 0),
+            formatNumberForExcel(item.afa_szazalek !== undefined ? item.afa_szazalek : 27),
+            formatNumberForExcel(itemNetto),
+            formatNumberForExcel(itemAfa),
+            formatNumberForExcel(item.brutto_ar || 0)
+          ];
+
+          rows.push([...baseCols, ...itemCols, ...totalsCols].join(';'));
+        }
+      } else {
+        const fallbackItemCols = [
+          cleanField('Számla végösszeg'),
+          '1',
+          formatNumberForExcel(d.vegosszeg_netto),
+          formatNumberForExcel(27),
+          formatNumberForExcel(d.vegosszeg_netto),
+          formatNumberForExcel(d.vegosszeg_afa),
+          formatNumberForExcel(d.vegosszeg_brutto)
+        ];
+
+        rows.push([...baseCols, ...fallbackItemCols, ...totalsCols].join(';'));
+      }
+    }
+
+    // UTF-8 BOM (\uFEFF) az Excel ékezetkompatibilitáshoz
+    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
+    const today = new Date().toISOString().slice(0, 10);
+
+    return new Response(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="szamlak_export_${today}.csv"`,
+      },
+    });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
   }

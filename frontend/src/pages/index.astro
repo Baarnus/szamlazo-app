@@ -7,14 +7,17 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <script defer src="https://umami-89-58-60-86.sslip.io/script.js" data-website-id="70ac19ad-2a82-40b9-b32d-aa6a46daad84"></script>
+    <script
+      defer
+      src="https://umami-89-58-60-86.sslip.io/script.js"
+      data-website-id="70ac19ad-2a82-40b9-b32d-aa6a46daad84"></script>
     <title>Számla AI - Okos Bizonylatkezelő</title>
   </head>
   <body class="min-h-screen bg-base-300 p-3 md:p-8 font-sans">
     <div class="max-w-5xl mx-auto space-y-5">
-      <!-- Fejléc (Mobilon és Desktopon is kompakt, Auth állapotjelzővel) -->
+      <!-- FEJLÉC -->
       <header
-        class="navbar bg-base-100 shadow-lg rounded-box px-3 md:px-5 py-2 flex justify-between items-center"
+        class="navbar bg-base-100 shadow-lg rounded-box px-4 md:px-6 py-2 flex justify-between items-center"
       >
         <div class="flex items-center gap-2">
           <span class="text-xl">🧾</span>
@@ -25,25 +28,41 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
           </h1>
         </div>
 
-        <div class="flex items-center gap-2">
-          <!-- Bejelentkezett állapot (Alapból rejtve) -->
+        <div class="flex items-center gap-3">
+          <!-- BEJELENTKEZETT ÁLLAPOT -->
           <div id="userProfileBar" class="hidden items-center gap-2">
             <div
-              class="badge badge-primary font-semibold text-xs py-2 px-3 gap-1"
+              class="badge badge-primary font-semibold text-xs py-2.5 px-3 gap-1 shadow-sm"
             >
               <span>⚡</span>
-              <span id="userCreditsDisplay">15</span>
-              <span class="opacity-80">kredit</span>
+              <span id="userCreditsDisplay">0</span>
+              <span class="opacity-80 font-normal">kredit</span>
             </div>
+
+            <!-- KIEMELT ZÖLD FELTÖLTÉS GOMB -->
             <button
+              type="button"
+              id="openBillingBtn"
+              class="btn btn-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 border-0 shadow"
+            >
+              + Feltöltés
+            </button>
+
+            <button
+              type="button"
               id="logoutBtn"
               class="btn btn-ghost btn-xs text-error font-medium"
-              >Kijelentkezés</button
             >
+              Kijelentkezés
+            </button>
           </div>
 
-          <!-- Bejelentkezés gomb (Ha nincs belépve) -->
-          <button id="openAuthModalBtn" class="btn btn-primary btn-sm gap-1">
+          <!-- KIJELENTKEZETT ÁLLAPOT -->
+          <button
+            id="openAuthModalBtn"
+            type="button"
+            class="btn btn-primary btn-sm gap-1"
+          >
             <svg
               xmlns="http://www.w3.org/2000/svg"
               class="h-4 w-4"
@@ -75,7 +94,6 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
           <!-- 1. Fül: Fájlok feltöltése / Mobil Kamera / Drag & Drop -->
           <div id="panelUpload" class="space-y-3">
-            <!-- Mobil és Tablet nézetben: Dedikált Kamera Gomb -->
             <div class="block md:hidden">
               <button
                 type="button"
@@ -140,6 +158,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
                   id="fileCountBadge">Kiválasztva: 0/10 kép</span
                 >
                 <button
+                  type="button"
                   id="clearFilesBtn"
                   class="btn btn-ghost btn-xs text-error">Összes törlése</button
                 >
@@ -161,14 +180,17 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
             <textarea
               id="urlInput"
               rows="3"
-              placeholder="https://pelda.hu/szamla1.jpg
-https://pelda.hu/szamla2.png"
+              placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png"
               class="textarea textarea-bordered w-full font-mono text-xs"
             ></textarea>
           </div>
 
           <div class="card-actions justify-end mt-3">
-            <button id="processBtn" class="btn btn-primary w-full md:w-auto">
+            <button
+              id="processBtn"
+              type="button"
+              class="btn btn-primary w-full md:w-auto"
+            >
               Feldolgozás Indítása
             </button>
           </div>
@@ -191,7 +213,11 @@ https://pelda.hu/szamla2.png"
             value="0"
             max="100"></progress>
         </div>
-        <button id="exportCsvBtn" class="btn btn-sm btn-neutral gap-2 hidden">
+        <button
+          id="exportCsvBtn"
+          type="button"
+          class="btn btn-sm btn-neutral gap-2 hidden"
+        >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             class="h-4 w-4"
@@ -240,7 +266,97 @@ https://pelda.hu/szamla2.png"
       <div id="resultsWrapper" class="space-y-5"></div>
     </div>
 
-    <!-- AUTH MODAL (Bejelentkezés & Regisztráció) -->
+    <!-- KREDIT VÁSÁRLÁS MODAL (Stripe) -->
+    <dialog id="billingModal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box max-w-2xl bg-base-100 p-6">
+        <div
+          class="flex justify-between items-center border-b border-base-200 pb-3 mb-4"
+        >
+          <h3 class="font-bold text-lg text-primary flex items-center gap-2">
+            ⚡ Kreditek feltöltése
+          </h3>
+          <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
+          </form>
+        </div>
+
+        <p class="text-xs text-base-content/70 mb-5">
+          Válassz kreditcsomagot. A kreditek nem járnak le, és azonnal
+          felhasználhatók a számlák feldolgozására.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <!-- Kezdő -->
+          <div
+            class="border border-base-300 rounded-2xl p-4 flex flex-col justify-between hover:border-primary transition-all bg-base-200/30"
+          >
+            <div>
+              <h4 class="font-bold text-sm">Kezdő</h4>
+              <div class="text-2xl font-black my-2 text-primary">
+                50 <span class="text-xs font-normal text-base-content/60"
+                  >kredit</span
+                >
+              </div>
+              <p class="text-xs font-semibold">2 990 Ft</p>
+              <p class="text-[11px] text-base-content/50">~60 Ft / db</p>
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline btn-primary btn-sm w-full mt-4 buy-pkg-btn"
+              data-pkg="starter">Vásárlás</button
+            >
+          </div>
+
+          <!-- Pro -->
+          <div
+            class="border-2 border-primary bg-primary/5 rounded-2xl p-4 flex flex-col justify-between relative shadow-lg"
+          >
+            <span
+              class="badge badge-primary badge-xs absolute -top-2.5 right-3 font-semibold"
+              >Népszerű</span
+            >
+            <div>
+              <h4 class="font-bold text-sm">Pro</h4>
+              <div class="text-2xl font-black my-2 text-primary">
+                150 <span class="text-xs font-normal text-base-content/60"
+                  >kredit</span
+                >
+              </div>
+              <p class="text-xs font-semibold">6 990 Ft</p>
+              <p class="text-[11px] text-base-content/50">~46 Ft / db</p>
+            </div>
+            <button
+              type="button"
+              class="btn btn-primary btn-sm w-full mt-4 buy-pkg-btn"
+              data-pkg="pro">Vásárlás</button
+            >
+          </div>
+
+          <!-- Üzleti -->
+          <div
+            class="border border-base-300 rounded-2xl p-4 flex flex-col justify-between hover:border-primary transition-all bg-base-200/30"
+          >
+            <div>
+              <h4 class="font-bold text-sm">Üzleti</h4>
+              <div class="text-2xl font-black my-2 text-primary">
+                500 <span class="text-xs font-normal text-base-content/60"
+                  >kredit</span
+                >
+              </div>
+              <p class="text-xs font-semibold">17 990 Ft</p>
+              <p class="text-[11px] text-base-content/50">~36 Ft / db</p>
+            </div>
+            <button
+              type="button"
+              class="btn btn-outline btn-primary btn-sm w-full mt-4 buy-pkg-btn"
+              data-pkg="business">Vásárlás</button
+            >
+          </div>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- AUTH MODAL -->
     <dialog id="authModal" class="modal modal-bottom sm:modal-middle">
       <div class="modal-box max-w-sm p-6 bg-base-100">
         <div
@@ -299,7 +415,7 @@ https://pelda.hu/szamla2.png"
       </div>
     </dialog>
 
-    <!-- SPLIT VIEW & INLINE SZERKESZTŐ MODAL -->
+    <!-- SPLIT VIEW & SZERKESZTŐ MODAL -->
     <dialog id="editModal" class="modal modal-bottom sm:modal-middle">
       <div
         class="modal-box w-11/12 max-w-7xl max-h-[92vh] flex flex-col p-4 md:p-6 bg-base-100"
@@ -324,9 +440,7 @@ https://pelda.hu/szamla2.png"
           <div
             class="lg:col-span-5 bg-base-200 rounded-xl p-2 flex flex-col items-center justify-start overflow-auto max-h-[40vh] lg:max-h-[68vh] border border-base-300"
           >
-            <div
-              class="w-full flex justify-between items-center px-2 py-1 mb-1"
-            >
+            <div class="w-full flex justify-between items-center px-2 py-1 mb-1">
               <span class="text-xs text-base-content/60 font-medium"
                 >Eredeti számlakép</span
               >
@@ -457,6 +571,7 @@ https://pelda.hu/szamla2.png"
                   Tételsorok
                 </h4>
                 <button
+                  type="button"
                   id="addItemBtn"
                   class="btn btn-xs btn-outline btn-primary">+ Új tétel</button
                 >
@@ -509,14 +624,24 @@ https://pelda.hu/szamla2.png"
         <div
           class="modal-action border-t border-base-200 pt-3 flex justify-between items-center"
         >
-          <button id="cancelModalBtn" class="btn btn-sm btn-ghost">Mégse</button
+          <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost"
+            >Mégse</button
           >
-          <button id="saveChangesBtn" class="btn btn-sm btn-primary"
-            >Változtatások Mentése (0 Ft)</button
+          <button
+            type="button"
+            id="saveChangesBtn"
+            class="btn btn-sm btn-primary">Változtatások Mentése (0 Ft)</button
           >
         </div>
       </div>
     </dialog>
+
+    <!-- MODERN DAISYUI TOAST CONTAINER (Alert ablakok helyett) -->
+    <div id="toastContainer" class="toast toast-top toast-end z-50 hidden">
+      <div id="toastAlert" class="alert alert-success shadow-lg text-xs font-semibold py-2.5 px-4 flex items-center gap-2">
+        <span id="toastMessage">Sikeres művelet!</span>
+      </div>
+    </div>
 
     <script>
       import type {
@@ -528,6 +653,22 @@ https://pelda.hu/szamla2.png"
 
       const API_BASE =
         import.meta.env.PUBLIC_API_URL || "http://localhost:3000";
+
+      // Toast értesítő függvény (nem blokkolja a felületet)
+      function showToast(message: string, type: 'success' | 'error' | 'info' = 'success') {
+        const container = document.getElementById('toastContainer');
+        const alertBox = document.getElementById('toastAlert');
+        const msgSpan = document.getElementById('toastMessage');
+        if (!container || !alertBox || !msgSpan) return;
+
+        alertBox.className = `alert alert-${type} shadow-xl text-xs font-semibold py-2.5 px-4 flex items-center gap-2`;
+        msgSpan.textContent = message;
+        container.classList.remove('hidden');
+
+        setTimeout(() => {
+          container.classList.add('hidden');
+        }, 4000);
+      }
 
       // Auth Elemek
       const authModal = document.getElementById(
@@ -563,6 +704,14 @@ https://pelda.hu/szamla2.png"
       ) as HTMLSpanElement;
       const logoutBtn = document.getElementById(
         "logoutBtn",
+      ) as HTMLButtonElement;
+
+      // Billing Modal Elemek
+      const billingModal = document.getElementById(
+        "billingModal",
+      ) as HTMLDialogElement;
+      const openBillingBtn = document.getElementById(
+        "openBillingBtn",
       ) as HTMLButtonElement;
 
       let authMode: "login" | "register" = "login";
@@ -701,8 +850,7 @@ https://pelda.hu/szamla2.png"
       let currentMode: "upload" | "url" = "upload";
       let selectedFiles: File[] = [];
       let inputItemsCache: ImageInputItem[] = [];
-      let lastProcessedResults: (SingleInvoiceResult & { dbId?: string })[] =
-        [];
+      let lastProcessedResults: (SingleInvoiceResult & { dbId?: string })[] = [];
       let activeEditIndex: number = -1;
       let currentEditingData: InvoiceData | null = null;
 
@@ -770,33 +918,132 @@ https://pelda.hu/szamla2.png"
         openAuthModalBtn.classList.remove("hidden");
         resultsWrapper.innerHTML = "";
         lastProcessedResults = [];
+        exportCsvBtn.classList.add("hidden");
       });
 
       async function checkCurrentSession() {
-        if (!authToken) return;
+        authToken = localStorage.getItem("szamla_ai_token");
+        if (!authToken) {
+          userProfileBar.classList.add("hidden");
+          userProfileBar.classList.remove("flex");
+          openAuthModalBtn.classList.remove("hidden");
+          return;
+        }
+
         try {
           const res = await fetch(`${API_BASE}/api/auth/me`, {
             headers: { Authorization: `Bearer ${authToken}` },
           });
           const data = await res.json();
-          if (res.ok && data.success) {
+
+          if (res.ok && data.success && data.user) {
             updateUserUI(data.user);
             loadInvoicesFromDatabase();
-          } else {
+          } else if (res.status === 401 || res.status === 403) {
             localStorage.removeItem("szamla_ai_token");
             authToken = null;
+            userProfileBar.classList.add("hidden");
+            userProfileBar.classList.remove("flex");
+            openAuthModalBtn.classList.remove("hidden");
           }
-        } catch {
-          localStorage.removeItem("szamla_ai_token");
-          authToken = null;
+        } catch (err) {
+          console.error("Session ellenőrzési hiba:", err);
         }
       }
 
       function updateUserUI(user: { email: string; credits: number }) {
-        userCreditsDisplay.textContent = String(user.credits);
+        userCreditsDisplay.textContent = String(user.credits ?? 0);
         userProfileBar.classList.remove("hidden");
         userProfileBar.classList.add("flex");
         openAuthModalBtn.classList.add("hidden");
+      }
+
+      // ==========================================
+      // BILLING / STRIPE LOGIKA
+      // ==========================================
+
+      openBillingBtn?.addEventListener("click", () => {
+        billingModal?.showModal();
+      });
+
+      document.querySelectorAll(".buy-pkg-btn").forEach((btn) => {
+        btn.addEventListener("click", async (e) => {
+          if (!authToken) {
+            authModal.showModal();
+            return;
+          }
+
+          const target = e.currentTarget as HTMLButtonElement;
+          const pkgId = target.getAttribute("data-pkg");
+          const originalText = target.textContent;
+          target.disabled = true;
+          target.innerHTML =
+            '<span class="loading loading-spinner loading-xs"></span>';
+
+          try {
+            const res = await fetch(
+              `${API_BASE}/api/billing/create-checkout-session`,
+              {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  Authorization: `Bearer ${authToken}`,
+                },
+                body: JSON.stringify({ packageId: pkgId }),
+              },
+            );
+
+            const data = await res.json();
+            if (res.ok && data.url) {
+              window.location.href = data.url;
+            } else {
+              showToast(data.error || "Hiba történt a fizetés indításakor.", 'error');
+            }
+          } catch (err) {
+            showToast("Nem sikerült kapcsolatot létesíteni a fizetési szerverrel.", 'error');
+          } finally {
+            target.disabled = false;
+            target.textContent = originalText;
+          }
+        });
+      });
+
+      // ==========================================
+      // STRIPE FIZETÉS UTÁNI VISSZATÉRÉS KEZELÉSE
+      // ==========================================
+      const stripeReturnParams = new URLSearchParams(window.location.search);
+      if (stripeReturnParams.get("payment") === "success") {
+        const addedCredits = stripeReturnParams.get("credits") || "150";
+        const sessionId = stripeReturnParams.get("session_id");
+
+        // URL megtisztítása a paraméterektől
+        window.history.replaceState(
+          {},
+          document.title,
+          window.location.pathname,
+        );
+
+        authToken = localStorage.getItem("szamla_ai_token");
+
+        if (sessionId && authToken) {
+          fetch(`${API_BASE}/api/billing/verify-session`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({ sessionId }),
+          })
+            .finally(() => {
+              checkCurrentSession().then(() => {
+                showToast(`🎉 Sikeres vásárlás! +${addedCredits} kredit jóváírva az egyenlegeden.`, 'success');
+              });
+            });
+        } else {
+          checkCurrentSession().then(() => {
+            showToast(`🎉 Sikeres vásárlás! +${addedCredits} kredit jóváírva az egyenlegeden.`, 'success');
+          });
+        }
       }
 
       // ==========================================
@@ -824,7 +1071,6 @@ https://pelda.hu/szamla2.png"
               }),
             );
 
-            // Kép gyorsítótár feltöltése
             inputItemsCache = data.invoices.map((inv: any) => ({
               type: "url",
               data: inv.imageUrl || "",
@@ -930,6 +1176,7 @@ https://pelda.hu/szamla2.png"
           img.className = "w-full h-full object-cover";
 
           const removeBtn = document.createElement("button");
+          removeBtn.type = "button";
           removeBtn.innerHTML = "&times;";
           removeBtn.className =
             "absolute top-1 right-1 btn btn-circle btn-xs btn-error opacity-80 group-hover:opacity-100 shadow";
@@ -1089,25 +1336,25 @@ https://pelda.hu/szamla2.png"
         (currentEditingData.tetelek || []).forEach((t, i) => {
           const tr = document.createElement("tr");
           tr.innerHTML = `
-            <td>
-              <input type="text" class="input input-xs input-bordered w-full item-name" data-index="${i}" value="${t.megnevezes || ""}" />
-            </td>
-            <td>
-              <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-qty" data-index="${i}" value="${t.mennyiseg || 1}" />
-            </td>
-            <td>
-              <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-unit" data-index="${i}" value="${t.egysegar || 0}" />
-            </td>
-            <td>
-              <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-vat-rate" data-index="${i}" value="${t.afa_szazalek || 0}" />
-            </td>
-            <td class="text-right font-medium text-xs item-net-display">${formatCurrency(t.netto_ar, cur)}</td>
-            <td class="text-right text-xs text-base-content/70 item-vat-display">${formatCurrency(t.afa_ertek || 0, cur)}</td>
-            <td class="text-right font-bold text-xs item-gross-display">${formatCurrency(t.brutto_ar, cur)}</td>
-            <td class="text-center">
-              <button class="btn btn-ghost btn-xs text-error btn-circle remove-item-btn" data-index="${i}">&times;</button>
-            </td>
-          `;
+              <td>
+                <input type="text" class="input input-xs input-bordered w-full item-name" data-index="${i}" value="${t.megnevezes || ""}" />
+              </td>
+              <td>
+                <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-qty" data-index="${i}" value="${t.mennyiseg || 1}" />
+              </td>
+              <td>
+                <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-unit" data-index="${i}" value="${t.egysegar || 0}" />
+              </td>
+              <td>
+                <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-vat-rate" data-index="${i}" value="${t.afa_szazalek || 0}" />
+              </td>
+              <td class="text-right font-medium text-xs item-net-display">${formatCurrency(t.netto_ar, cur)}</td>
+              <td class="text-right text-xs text-base-content/70 item-vat-display">${formatCurrency(t.afa_ertek || 0, cur)}</td>
+              <td class="text-right font-bold text-xs item-gross-display">${formatCurrency(t.brutto_ar, cur)}</td>
+              <td class="text-center">
+                <button type="button" class="btn btn-ghost btn-xs text-error btn-circle remove-item-btn" data-index="${i}">&times;</button>
+              </td>
+            `;
           editItemsTbody.appendChild(tr);
         });
 
@@ -1251,7 +1498,7 @@ https://pelda.hu/szamla2.png"
         recalculateModalTotals();
       });
 
-      // MÓDOSÍTÁS MENTÉSE (0 Ft AI költség -> PATCH az adatbázisba)
+      // MÓDOSÍTÁS MENTÉSE
       saveChangesBtn.addEventListener("click", async () => {
         if (activeEditIndex === -1 || !currentEditingData) return;
 
@@ -1270,7 +1517,6 @@ https://pelda.hu/szamla2.png"
           currentResult.isValid = true;
           currentResult.errors = [];
 
-          // Ha létezik dbId, elküldjük a PATCH frissítést
           if (currentResult.dbId && authToken) {
             try {
               await fetch(`${API_BASE}/api/invoices/${currentResult.dbId}`, {
@@ -1311,14 +1557,14 @@ https://pelda.hu/szamla2.png"
 
         if (!item.success || !item.data) {
           card.innerHTML = `
-            <div class="card-body">
-              <div class="flex justify-between items-center">
-                <h3 class="font-bold text-error">Hiba: ${item.source}</h3>
-                <span class="badge badge-error">Sikertelen</span>
+              <div class="card-body">
+                <div class="flex justify-between items-center">
+                  <h3 class="font-bold text-error">Hiba: ${item.source}</h3>
+                  <span class="badge badge-error">Sikertelen</span>
+                </div>
+                <p class="text-xs text-base-content/70 mt-2">${item.errors.join(", ")}</p>
               </div>
-              <p class="text-xs text-base-content/70 mt-2">${item.errors.join(", ")}</p>
-            </div>
-          `;
+            `;
         } else {
           const d = item.data;
           const currency = d.penznem || "HUF";
@@ -1331,88 +1577,88 @@ https://pelda.hu/szamla2.png"
                   : Number(t.brutto_ar || 0) - Number(t.netto_ar || 0);
 
               return `
-                <tr>
-                  <td class="font-medium">${t.megnevezes || "-"}</td>
-                  <td class="text-right">${t.mennyiseg}</td>
-                  <td class="text-right">${formatCurrency(t.egysegar, currency)}</td>
-                  <td class="text-right"><span class="badge badge-ghost badge-sm">${t.afa_szazalek}%</span></td>
-                  <td class="text-right">${formatCurrency(t.netto_ar, currency)}</td>
-                  <td class="text-right text-base-content/70">${formatCurrency(afaErtek, currency)}</td>
-                  <td class="text-right font-semibold">${formatCurrency(t.brutto_ar, currency)}</td>
-                </tr>
-              `;
+                  <tr>
+                    <td class="font-medium">${t.megnevezes || "-"}</td>
+                    <td class="text-right">${t.mennyiseg}</td>
+                    <td class="text-right">${formatCurrency(t.egysegar, currency)}</td>
+                    <td class="text-right"><span class="badge badge-ghost badge-sm">${t.afa_szazalek}%</span></td>
+                    <td class="text-right">${formatCurrency(t.netto_ar, currency)}</td>
+                    <td class="text-right text-base-content/70">${formatCurrency(afaErtek, currency)}</td>
+                    <td class="text-right font-semibold">${formatCurrency(t.brutto_ar, currency)}</td>
+                  </tr>
+                `;
             })
             .join("");
 
           const errorAlert = !item.isValid
             ? `
-              <div class="alert alert-warning text-xs p-2 rounded-lg mt-2">
-                <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
-                <span><b>Figyelmeztetés:</b> ${item.errors.join(" | ")}</span>
-              </div>
-            `
+                <div class="alert alert-warning text-xs p-2 rounded-lg mt-2">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="stroke-current shrink-0 h-4 w-4" fill="none" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                  <span><b>Figyelmeztetés:</b> ${item.errors.join(" | ")}</span>
+                </div>
+              `
             : "";
 
           card.innerHTML = `
-            <div class="card-body space-y-4 p-4 md:p-6">
-              <div class="flex flex-wrap justify-between items-center border-b border-base-200 pb-3 gap-2">
-                <div>
-                  <h3 class="font-bold text-lg text-primary">
-                    ${d.kiallito_neve || "Ismeretlen kiállító"}
-                    ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1">${d.kiallito_orszag}</span>` : ""}
-                  </h3>
-                  <div class="text-xs text-base-content/60">
-                    Számlaszám: <span class="font-mono font-semibold">${d.szamlaszam || "Nincs"}</span> 
-                    ${d.kiallito_adoszam ? `| Adószám: ${d.kiallito_adoszam}` : ""}
+              <div class="card-body space-y-4 p-4 md:p-6">
+                <div class="flex flex-wrap justify-between items-center border-b border-base-200 pb-3 gap-2">
+                  <div>
+                    <h3 class="font-bold text-lg text-primary">
+                      ${d.kiallito_neve || "Ismeretlen kiállító"}
+                      ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1">${d.kiallito_orszag}</span>` : ""}
+                    </h3>
+                    <div class="text-xs text-base-content/60">
+                      Számlaszám: <span class="font-mono font-semibold">${d.szamlaszam || "Nincs"}</span> 
+                      ${d.kiallito_adoszam ? `| Adószám: ${d.kiallito_adoszam}` : ""}
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-2">
+                    <span class="badge badge-accent font-bold">${currency}</span>
+                    <span class="badge ${item.isValid ? "badge-success" : "badge-warning"}">
+                      ${item.isValid ? "✓ Valid" : "⚠ Ellenőrizendő"}
+                    </span>
+                    <button type="button" class="btn btn-sm btn-outline btn-primary edit-card-btn ml-2" data-index="${index}">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                      </svg>
+                      Ellenőrzés / Szerkesztés
+                    </button>
                   </div>
                 </div>
-                <div class="flex items-center gap-2">
-                  <span class="badge badge-accent font-bold">${currency}</span>
-                  <span class="badge ${item.isValid ? "badge-success" : "badge-warning"}">
-                    ${item.isValid ? "✓ Valid" : "⚠ Ellenőrizendő"}
-                  </span>
-                  <button class="btn btn-sm btn-outline btn-primary edit-card-btn ml-2" data-index="${index}">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                    </svg>
-                    Ellenőrzés / Szerkesztés
-                  </button>
+
+                ${errorAlert}
+
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs bg-base-200/50 p-3 rounded-box">
+                  <div><span class="text-base-content/50 block">Vevő:</span> <span class="font-medium">${d.vevo_neve || "-"}</span></div>
+                  <div><span class="text-base-content/50 block">Kelt:</span> <span class="font-medium">${d.kelt_datum || "-"}</span></div>
+                  <div><span class="text-base-content/50 block">Fiz. határidő:</span> <span class="font-medium">${d.fizetesi_hatarido || "-"}</span></div>
+                  <div><span class="text-base-content/50 block">Nettó összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_netto, currency)}</span></div>
+                  <div><span class="text-base-content/50 block">ÁFA összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_afa, currency)}</span></div>
+                </div>
+
+                <div class="flex justify-between items-center bg-base-200 px-4 py-2 rounded-lg">
+                  <span class="text-sm font-semibold text-base-content/80">Fizetendő bruttó végösszeg:</span>
+                  <span class="text-lg font-bold text-success">${formatCurrency(d.vegosszeg_brutto, currency)}</span>
+                </div>
+
+                <div class="overflow-x-auto border border-base-200 rounded-lg">
+                  <table class="table table-xs table-zebra w-full">
+                    <thead class="bg-base-200/60">
+                      <tr>
+                        <th>Tétel</th>
+                        <th class="text-right">Mennyiség</th>
+                        <th class="text-right">Egységár</th>
+                        <th class="text-right">ÁFA %</th>
+                        <th class="text-right">Nettó</th>
+                        <th class="text-right">ÁFA érték</th>
+                        <th class="text-right">Bruttó</th>
+                      </tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                  </table>
                 </div>
               </div>
-
-              ${errorAlert}
-
-              <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 text-xs bg-base-200/50 p-3 rounded-box">
-                <div><span class="text-base-content/50 block">Vevő:</span> <span class="font-medium">${d.vevo_neve || "-"}</span></div>
-                <div><span class="text-base-content/50 block">Kelt:</span> <span class="font-medium">${d.kelt_datum || "-"}</span></div>
-                <div><span class="text-base-content/50 block">Fiz. határidő:</span> <span class="font-medium">${d.fizetesi_hatarido || "-"}</span></div>
-                <div><span class="text-base-content/50 block">Nettó összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_netto, currency)}</span></div>
-                <div><span class="text-base-content/50 block">ÁFA összesen:</span> <span class="font-medium">${formatCurrency(d.vegosszeg_afa, currency)}</span></div>
-              </div>
-
-              <div class="flex justify-between items-center bg-base-200 px-4 py-2 rounded-lg">
-                <span class="text-sm font-semibold text-base-content/80">Fizetendő bruttó végösszeg:</span>
-                <span class="text-lg font-bold text-success">${formatCurrency(d.vegosszeg_brutto, currency)}</span>
-              </div>
-
-              <div class="overflow-x-auto border border-base-200 rounded-lg">
-                <table class="table table-xs table-zebra w-full">
-                  <thead class="bg-base-200/60">
-                    <tr>
-                      <th>Tétel</th>
-                      <th class="text-right">Mennyiség</th>
-                      <th class="text-right">Egységár</th>
-                      <th class="text-right">ÁFA %</th>
-                      <th class="text-right">Nettó</th>
-                      <th class="text-right">ÁFA érték</th>
-                      <th class="text-right">Bruttó</th>
-                    </tr>
-                  </thead>
-                  <tbody>${rows}</tbody>
-                </table>
-              </div>
-            </div>
-          `;
+            `;
 
           card
             .querySelector(".edit-card-btn")
@@ -1422,18 +1668,6 @@ https://pelda.hu/szamla2.png"
         }
 
         return card;
-      }
-
-      function appendOrUpdateCard(
-        item: SingleInvoiceResult & { dbId?: string },
-      ) {
-        const existingCard = document.getElementById(`card-item-${item.index}`);
-        const newCard = createCardElement(item, item.index);
-        if (existingCard) {
-          existingCard.replaceWith(newCard);
-        } else {
-          resultsWrapper.appendChild(newCard);
-        }
       }
 
       function renderResultsCards() {
@@ -1447,112 +1681,47 @@ https://pelda.hu/szamla2.png"
       // CSV EXPORT
       // ==========================================
 
-      function exportToCSV(results: SingleInvoiceResult[]) {
-        const formatNumberForExcel = (
-          num: number | undefined | null,
-        ): string => {
-          if (num === undefined || num === null || isNaN(Number(num)))
-            return "0";
-          return String(num).replace(".", ",");
-        };
+      async function triggerBackendCsvDownload() {
+        if (!authToken) {
+          authModal.showModal();
+          return;
+        }
 
-        const rows: string[][] = [
-          [
-            "Számlaszám",
-            "Kiállító",
-            "Kiállító Adószám",
-            "Ország",
-            "Vevő",
-            "Kelt",
-            "Fizetési Határidő",
-            "Pénznem",
-            "Tétel Megnevezés",
-            "Mennyiség",
-            "Egységár",
-            "Áfa %",
-            "Tétel Nettó",
-            "Tétel Áfa",
-            "Tétel Bruttó",
-            "Számla Végösszeg Bruttó",
-            "Státusz",
-          ],
-        ];
+        exportCsvBtn.disabled = true;
+        const originalContent = exportCsvBtn.innerHTML;
+        exportCsvBtn.innerHTML =
+          '<span class="loading loading-spinner loading-xs"></span> Letöltés...';
 
-        results.forEach((res) => {
-          if (res.success && res.data) {
-            const d = res.data;
-            const currency = d.penznem || "HUF";
+        try {
+          const res = await fetch(`${API_BASE}/api/invoices/export/csv`, {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          });
 
-            if (d.tetelek && d.tetelek.length > 0) {
-              d.tetelek.forEach((item) => {
-                const afaErtek =
-                  item.afa_ertek !== undefined && item.afa_ertek !== null
-                    ? item.afa_ertek
-                    : Number(item.brutto_ar || 0) - Number(item.netto_ar || 0);
-
-                rows.push([
-                  `"${d.szamlaszam || ""}"`,
-                  `"${d.kiallito_neve || ""}"`,
-                  `"${d.kiallito_adoszam || ""}"`,
-                  `"${d.kiallito_orszag || ""}"`,
-                  `"${d.vevo_neve || ""}"`,
-                  `"${d.kelt_datum || ""}"`,
-                  `"${d.fizetesi_hatarido || ""}"`,
-                  `"${currency}"`,
-                  `"${(item.megnevezes || "").replace(/"/g, '""')}"`,
-                  formatNumberForExcel(item.mennyiseg || 1),
-                  formatNumberForExcel(item.egysegar || 0),
-                  formatNumberForExcel(item.afa_szazalek || 0),
-                  formatNumberForExcel(item.netto_ar || 0),
-                  formatNumberForExcel(afaErtek || 0),
-                  formatNumberForExcel(item.brutto_ar || 0),
-                  formatNumberForExcel(d.vegosszeg_brutto || 0),
-                  res.isValid ? "Érvényes" : "Összegzési eltérés",
-                ]);
-              });
-            } else {
-              rows.push([
-                `"${d.szamlaszam || ""}"`,
-                `"${d.kiallito_neve || ""}"`,
-                `"${d.kiallito_adoszam || ""}"`,
-                `"${d.kiallito_orszag || ""}"`,
-                `"${d.vevo_neve || ""}"`,
-                `"${d.kelt_datum || ""}"`,
-                `"${d.fizetesi_hatarido || ""}"`,
-                `"${currency}"`,
-                '"N/A"',
-                "1",
-                formatNumberForExcel(d.vegosszeg_netto || 0),
-                '"N/A"',
-                formatNumberForExcel(d.vegosszeg_netto || 0),
-                formatNumberForExcel(d.vegosszeg_afa || 0),
-                formatNumberForExcel(d.vegosszeg_brutto || 0),
-                formatNumberForExcel(d.vegosszeg_brutto || 0),
-                res.isValid ? "Érvényes" : "Összegzési eltérés",
-              ]);
-            }
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "A CSV exportálása sikertelen.");
           }
-        });
 
-        const csvContent = "\uFEFF" + rows.map((e) => e.join(";")).join("\n");
-        const blob = new Blob([csvContent], {
-          type: "text/csv;charset=utf-8;",
-        });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.setAttribute("href", url);
-        link.setAttribute(
-          "download",
-          `szamlak_export_${new Date().toISOString().slice(0, 10)}.csv`,
-        );
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `szamlak_export_${new Date().toISOString().slice(0, 10)}.csv`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+          showToast(`Hiba a letöltés során: ${err.message}`, 'error');
+        } finally {
+          exportCsvBtn.disabled = false;
+          exportCsvBtn.innerHTML = originalContent;
+        }
       }
 
-      exportCsvBtn.addEventListener("click", () => {
-        if (lastProcessedResults.length > 0) exportToCSV(lastProcessedResults);
-      });
+      exportCsvBtn.addEventListener("click", triggerBackendCsvDownload);
 
       // ==========================================
       // FELDOLGOZÁS INDÍTÁSA (SSE STREAMING)
@@ -1568,7 +1737,7 @@ https://pelda.hu/szamla2.png"
 
         if (currentMode === "upload") {
           if (selectedFiles.length === 0) {
-            alert("Válassz ki vagy fotózz be legalább egy képet!");
+            showToast("Válassz ki vagy fotózz be legalább egy képet!", 'info');
             return;
           }
 
@@ -1583,11 +1752,11 @@ https://pelda.hu/szamla2.png"
             .filter((u) => u.length > 0);
 
           if (urls.length === 0) {
-            alert("Adj meg legalább egy kép URL-t!");
+            showToast("Adj meg legalább egy kép URL-t!", 'info');
             return;
           }
           if (urls.length > 10) {
-            alert("Egyszerre maximum 10 URL-t adhatsz meg!");
+            showToast("Egyszerre maximum 10 URL-t adhatsz meg!", 'info');
             return;
           }
 
@@ -1666,7 +1835,7 @@ https://pelda.hu/szamla2.png"
                 }
               } else if (eventType === "invoice-parsed" && rawData) {
                 const invoiceResult = JSON.parse(rawData);
-                lastProcessedResults.unshift(invoiceResult); // Új számlák a lista elejére
+                lastProcessedResults.unshift(invoiceResult);
 
                 renderResultsCards();
 
@@ -1687,15 +1856,11 @@ https://pelda.hu/szamla2.png"
 
                 logRow.className = `flex justify-between items-center py-0.5 border-b border-base-content/5 last:border-0 ${isOk ? "text-success" : "text-error"}`;
                 logRow.innerHTML = `
-                  <span><b>#${orderNum}.</b> ${isOk ? "✓" : "✕"} ${partner}</span>
-                  <span class="text-[10px] text-base-content/50">${time}</span>
-                `;
+                    <span><b>#${orderNum}.</b> ${isOk ? "✓" : "✕"} ${partner}</span>
+                    <span class="text-[10px] text-base-content/50">${time}</span>
+                  `;
                 activityLog.appendChild(logRow);
                 activityLog.scrollTop = activityLog.scrollHeight;
-
-                console.log(
-                  `[Stream #${orderNum}] Elkészült: Kép #${invoiceResult.index + 1} (${partner}) -> ${time}`,
-                );
               } else if (eventType === "done") {
                 const doneData = rawData ? JSON.parse(rawData) : {};
                 statusAlert.className =
@@ -1725,7 +1890,7 @@ https://pelda.hu/szamla2.png"
         }
       });
 
-      // Induláskori munkamenet ellenőrzés
+      // Induláskori munkamenet vizsgálat
       checkCurrentSession();
     </script>
   </body>

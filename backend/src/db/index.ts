@@ -26,10 +26,23 @@ export async function initDatabase() {
         password_hash TEXT NOT NULL,
         tier TEXT NOT NULL DEFAULT 'free',
         monthly_credits INTEGER NOT NULL DEFAULT 15,
+        szamlazz_hu_api_key TEXT,
+        nav_technical_user TEXT,
+        nav_technical_password TEXT,
+        nav_sign_key TEXT,
+        nav_exchange_key TEXT,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `;
+
+    // Új oszlopok hozzáadása meglévő adatbázishoz (ALTER TABLE IF NOT EXISTS)
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS szamlazz_hu_api_key TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_technical_user TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_technical_password TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_sign_key TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_exchange_key TEXT;`;
+
 
     // 2. Invoices tábla létrehozása (user_id hivatkozással)
     await client`

@@ -11,6 +11,8 @@ import { invoices, users } from './db/schema.js';
 import { authRouter, getAuthUser } from './auth.js';
 import { uploadInvoiceBuffer, getInvoiceImageUrl } from './lib/s3.js';
 import { billingRouter } from './billing.js';
+import { settingsRouter } from './settings.js';
+import { szamlazzRouter } from './szamlazz-integration.js';
 import type {
   InvoiceData,
   ImageInputItem,
@@ -28,6 +30,12 @@ app.route('/api/auth', authRouter);
 
 // Stripe billing
 app.route('/api/billing', billingRouter);
+
+// Settings API
+app.route('/api/settings', settingsRouter);
+
+// Számlázz.hu API
+app.route('/api/szamlazz', szamlazzRouter);
 
 // ==========================================
 // 1. ZOD SÉMÁK ÉS MATEMATIKAI VALIDÁCIÓ
@@ -334,6 +342,88 @@ app.post('/api/parse-batch-stream', async (c) => {
       }),
     });
   });
+});
+
+app.post('/api/invoices/parse-text', async (c) => {
+  const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_API_KEY) return c.json({ success: false, error: 'GEMINI_API_KEY hiányzik a szerveren.' }, 500);
+
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) return c.json({ success: false, error: 'Nincs bejelentkezve.' }, 401);
+
+  if (user.monthlyCredits <= 0) {
+    return c.json({ success: false, error: 'Nincs elég kredited.' }, 403);
+  }
+
+  try {
+    const { textPrompt } = await c.req.json();
+    if (!textPrompt || typeof textPrompt !== 'string') {
+      return c.json({ success: false, error: 'Szöveges utasítás hiányzik.' }, 400);
+    }
+
+    // 1 kredit levonás
+    await db.update(users)
+      .set({ monthlyCredits: sql`${users.monthlyCredits} - 1`, updatedAt: new Date() })
+      .where(eq(users.id, user.id));
+
+    const textPromptWithSchema = `${prompt}\n\nA felhasználó kérése: "${textPrompt}"\n\nFeltételezd az alapértelmezett áfakulcsokat, és pontosan töltsd ki a fenti sémát!`;
+
+    const geminiRes = await fetch(
+      'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-goog-api-key': GEMINI_API_KEY.trim()
+        },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: textPromptWithSchema }] }],
+          generationConfig: { response_mime_type: 'application/json', temperature: 0.1 },
+        }),
+      }
+    );
+
+    if (!geminiRes.ok) throw new Error(`Gemini API hiba: ${await geminiRes.text()}`);
+    
+    const resultJson: any = await geminiRes.json();
+    const rawText = resultJson.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!rawText) throw new Error('Nem érkezett kinyerhető szöveg az AI-tól.');
+
+    const parsedJson = JSON.parse(rawText);
+    const zodResult = InvoiceDataSchema.safeParse(parsedJson);
+
+    const isValid = zodResult.success;
+    const finalData = (isValid ? zodResult.data : parsedJson) as InvoiceData;
+    const errorMessages = !isValid ? zodResult.error.issues.map((issue) => issue.message) : [];
+
+    // Mentés DB-be
+    const inserted = await db.insert(invoices).values({
+      userId: user.id,
+      source: 'Szöveges prompt: ' + textPrompt.substring(0, 30) + '...',
+      imageUrl: null,
+      data: finalData,
+      isValid: isValid,
+      status: isValid ? 'processed' : 'needs_review',
+    }).returning();
+
+    const dbId = inserted[0]?.id;
+
+    return c.json({
+      success: true,
+      result: {
+        index: 0,
+        dbId,
+        source: 'Szöveges Asszisztens',
+        success: true,
+        isValid,
+        errors: errorMessages,
+        data: finalData
+      }
+    });
+
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
+  }
 });
 
 // A számlák lekérdezése (a MinIO s3Key-ekből ideiglenes aláírt URL generálásával)

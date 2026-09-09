@@ -55,6 +55,14 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
             <button
               type="button"
+              id="openSettingsBtn"
+              class="btn btn-ghost btn-xs text-base-content font-medium"
+            >
+              ⚙️ Beállítások
+            </button>
+
+            <button
+              type="button"
               id="logoutBtn"
               class="btn btn-ghost btn-xs text-error font-medium"
             >
@@ -387,6 +395,9 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
               <a role="tab" id="tabUrl" class="tab font-medium"
                 >Kép URL linkek</a
               >
+              <a role="tab" id="tabTextPrompt" class="tab font-medium"
+                >🤖 Szöveges Prompt</a
+              >
             </div>
 
             <!-- 1. Fül: Fájlok feltöltése / Mobil Kamera / Drag & Drop -->
@@ -483,7 +494,21 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
                 rows="3"
                 placeholder="https://pelda.hu/szamla1.jpg
 https://pelda.hu/szamla2.png"
+                placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png"
                 class="textarea textarea-bordered w-full font-mono text-xs"
+              ></textarea>
+            </div>
+
+            <!-- 3. Fül: Szöveges (AI) Prompt megadása -->
+            <div id="panelTextPrompt" class="hidden space-y-3">
+              <label class="block text-xs text-base-content/70">
+                Írd le egyszerűen, hogy kinek és miről szeretnél számlát kiállítani:
+              </label>
+              <textarea
+                id="textPromptInput"
+                rows="3"
+                placeholder="Például: Számlát szeretnék kiállítani a Kovács Kft-nek (11111111-2-41), címe: Budapest, Fő utca 1. Fejlesztés 50.000 Ft áfamentesen."
+                class="textarea textarea-bordered w-full text-sm"
               ></textarea>
             </div>
 
@@ -715,6 +740,48 @@ https://pelda.hu/szamla2.png"
       </div>
     </dialog>
 
+    <!-- BEÁLLÍTÁSOK MODAL -->
+    <dialog id="settingsModal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box p-6 bg-base-100">
+        <div class="flex justify-between items-center border-b border-base-200 pb-3 mb-4">
+          <h3 class="font-bold text-lg text-primary">⚙️ Integrációk és Beállítások</h3>
+          <form method="dialog">
+            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
+          </form>
+        </div>
+
+        <form id="settingsForm" class="space-y-4">
+          <div class="space-y-2">
+            <h4 class="font-bold text-sm">1. Számlázz.hu E-számla készítése</h4>
+            <p class="text-xs text-base-content/70">Ha szeretnél automatikusan e-számlát kiállítani a feltöltött cetlikből, add meg a Számla Agent API kulcsodat.</p>
+            <input
+              type="text"
+              id="set_szamlazz_hu_api_key"
+              class="input input-sm input-bordered w-full"
+              placeholder="Számlázz.hu API kulcs"
+            />
+          </div>
+
+          <div class="divider my-1"></div>
+
+          <div class="space-y-2">
+            <h4 class="font-bold text-sm">2. NAV Online Számla bekötése</h4>
+            <p class="text-xs text-base-content/70">Kézi papírszámlák (számlatömb) közvetlen NAV beküldéséhez add meg a technikai felhasználó adatait.</p>
+            <input type="text" id="set_nav_technical_user" class="input input-sm input-bordered w-full mb-1" placeholder="Technikai felhasználónév" />
+            <input type="password" id="set_nav_technical_password" class="input input-sm input-bordered w-full mb-1" placeholder="Technikai jelszó" />
+            <input type="text" id="set_nav_sign_key" class="input input-sm input-bordered w-full mb-1" placeholder="XML Aláírókulcs" />
+            <input type="text" id="set_nav_exchange_key" class="input input-sm input-bordered w-full" placeholder="XML Cserekulcs" />
+          </div>
+
+          <div id="settingsErrorAlert" class="hidden alert alert-error text-xs p-2 rounded-lg mt-3"></div>
+
+          <div class="modal-action mt-4">
+            <button type="submit" id="settingsSubmitBtn" class="btn btn-primary btn-sm w-full">Mentés</button>
+          </div>
+        </form>
+      </div>
+    </dialog>
+
     <!-- SPLIT VIEW & SZERKESZTŐ MODAL -->
     <dialog id="editModal" class="modal modal-bottom sm:modal-middle">
       <div
@@ -758,6 +825,10 @@ https://pelda.hu/szamla2.png"
               src=""
               alt="Számla kép"
             />
+            <div
+              id="modalTextPrompt"
+              class="hidden max-w-full w-full h-full bg-base-200 rounded p-4 text-sm whitespace-pre-wrap overflow-y-auto shadow-inner"
+            ></div>
           </div>
 
           <div
@@ -929,11 +1000,22 @@ https://pelda.hu/szamla2.png"
           <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost"
             >Mégse</button
           >
-          <button
-            type="button"
-            id="saveChangesBtn"
-            class="btn btn-sm btn-primary">Változtatások Mentése (0 Ft)</button
-          >
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              id="issueSzamlazzHuBtn"
+              class="btn btn-sm btn-secondary"
+            >
+              🧾 E-számla Kiállítása
+            </button>
+            <button
+              type="button"
+              id="saveChangesBtn"
+              class="btn btn-sm btn-primary"
+            >
+              Változtatások Mentése
+            </button>
+          </div>
         </div>
       </div>
     </dialog>
@@ -1041,10 +1123,12 @@ https://pelda.hu/szamla2.png"
         "tabUpload",
       ) as HTMLAnchorElement;
       const tabUrl = document.getElementById("tabUrl") as HTMLAnchorElement;
+      const tabTextPrompt = document.getElementById("tabTextPrompt") as HTMLAnchorElement;
       const panelUpload = document.getElementById(
         "panelUpload",
       ) as HTMLDivElement;
       const panelUrl = document.getElementById("panelUrl") as HTMLDivElement;
+      const panelTextPrompt = document.getElementById("panelTextPrompt") as HTMLDivElement;
 
       const cameraBtn = document.getElementById(
         "cameraBtn",
@@ -1071,6 +1155,9 @@ https://pelda.hu/szamla2.png"
 
       const urlInput = document.getElementById(
         "urlInput",
+      ) as HTMLTextAreaElement;
+      const textPromptInput = document.getElementById(
+        "textPromptInput",
       ) as HTMLTextAreaElement;
       const processBtn = document.getElementById(
         "processBtn",
@@ -1114,6 +1201,9 @@ https://pelda.hu/szamla2.png"
       const modalImageLink = document.getElementById(
         "modalImageLink",
       ) as HTMLAnchorElement;
+      const modalTextPrompt = document.getElementById(
+        "modalTextPrompt",
+      ) as HTMLDivElement;
       const modalValidBadge = document.getElementById(
         "modalValidBadge",
       ) as HTMLSpanElement;
@@ -1159,6 +1249,9 @@ https://pelda.hu/szamla2.png"
       const displayBrutto = document.getElementById(
         "displayBrutto",
       ) as HTMLElement;
+      const issueSzamlazzHuBtn = document.getElementById(
+        "issueSzamlazzHuBtn",
+      ) as HTMLButtonElement;
       const saveChangesBtn = document.getElementById(
         "saveChangesBtn",
       ) as HTMLButtonElement;
@@ -1167,6 +1260,7 @@ https://pelda.hu/szamla2.png"
       ) as HTMLButtonElement;
 
       let currentMode: "upload" | "url" = "upload";
+      let currentMode: "upload" | "url" | "text" = "upload";
       let selectedFiles: File[] = [];
       let inputItemsCache: ImageInputItem[] = [];
       let lastProcessedResults: (SingleInvoiceResult & { dbId?: string })[] =
@@ -1312,6 +1406,87 @@ https://pelda.hu/szamla2.png"
         guestLandingView.classList.add("hidden");
         appDashboardView.classList.remove("hidden");
       }
+
+      // ==========================================
+      // BEÁLLÍTÁSOK / SETTINGS LOGIKA
+      // ==========================================
+
+      const settingsModal = document.getElementById("settingsModal") as HTMLDialogElement;
+      const openSettingsBtn = document.getElementById("openSettingsBtn") as HTMLButtonElement;
+      const settingsForm = document.getElementById("settingsForm") as HTMLFormElement;
+      const settingsSubmitBtn = document.getElementById("settingsSubmitBtn") as HTMLButtonElement;
+      const settingsErrorAlert = document.getElementById("settingsErrorAlert") as HTMLDivElement;
+
+      const inputSzamlazzHuKey = document.getElementById("set_szamlazz_hu_api_key") as HTMLInputElement;
+      const inputNavUser = document.getElementById("set_nav_technical_user") as HTMLInputElement;
+      const inputNavPass = document.getElementById("set_nav_technical_password") as HTMLInputElement;
+      const inputNavSign = document.getElementById("set_nav_sign_key") as HTMLInputElement;
+      const inputNavExchange = document.getElementById("set_nav_exchange_key") as HTMLInputElement;
+
+      openSettingsBtn?.addEventListener("click", async () => {
+        if (!authToken) return;
+        
+        try {
+          const res = await fetch(`${API_BASE}/api/settings`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          });
+          const data = await res.json();
+          
+          if (res.ok && data.success) {
+            inputSzamlazzHuKey.value = data.settings.szamlazzHuApiKey || '';
+            inputNavUser.value = data.settings.navTechnicalUser || '';
+            inputNavSign.value = data.settings.navSignKey || '';
+            inputNavExchange.value = data.settings.navExchangeKey || '';
+            inputNavPass.value = ''; // Nem jön át a backendről a jelszó
+            
+            settingsErrorAlert.classList.add("hidden");
+            settingsModal.showModal();
+          } else {
+            showToast("Hiba a beállítások betöltésekor", "error");
+          }
+        } catch (err) {
+          showToast("Nem sikerült kapcsolódni a szerverhez.", "error");
+        }
+      });
+
+      settingsForm?.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        settingsSubmitBtn.disabled = true;
+        settingsErrorAlert.classList.add("hidden");
+
+        const payload = {
+          szamlazzHuApiKey: inputSzamlazzHuKey.value,
+          navTechnicalUser: inputNavUser.value,
+          navTechnicalPassword: inputNavPass.value || undefined, // csak ha beírták, akkor frissül
+          navSignKey: inputNavSign.value,
+          navExchangeKey: inputNavExchange.value
+        };
+
+        try {
+          const res = await fetch(`${API_BASE}/api/settings`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const data = await res.json();
+          if (res.ok && data.success) {
+            settingsModal.close();
+            showToast("Beállítások sikeresen mentve!", "success");
+          } else {
+            settingsErrorAlert.textContent = data.error || "Hiba a mentés során.";
+            settingsErrorAlert.classList.remove("hidden");
+          }
+        } catch (err: any) {
+          settingsErrorAlert.textContent = "Hálózati hiba történt.";
+          settingsErrorAlert.classList.remove("hidden");
+        } finally {
+          settingsSubmitBtn.disabled = false;
+        }
+      });
 
       // ==========================================
       // BILLING / STRIPE LOGIKA
@@ -1460,16 +1635,30 @@ https://pelda.hu/szamla2.png"
         currentMode = "upload";
         tabUpload.classList.add("tab-active");
         tabUrl.classList.remove("tab-active");
+        tabTextPrompt.classList.remove("tab-active");
         panelUpload.classList.remove("hidden");
         panelUrl.classList.add("hidden");
+        panelTextPrompt.classList.add("hidden");
       });
 
       tabUrl.addEventListener("click", () => {
         currentMode = "url";
         tabUrl.classList.add("tab-active");
         tabUpload.classList.remove("tab-active");
+        tabTextPrompt.classList.remove("tab-active");
         panelUrl.classList.remove("hidden");
         panelUpload.classList.add("hidden");
+        panelTextPrompt.classList.add("hidden");
+      });
+
+      tabTextPrompt.addEventListener("click", () => {
+        currentMode = "text";
+        tabTextPrompt.classList.add("tab-active");
+        tabUpload.classList.remove("tab-active");
+        tabUrl.classList.remove("tab-active");
+        panelTextPrompt.classList.remove("hidden");
+        panelUpload.classList.add("hidden");
+        panelUrl.classList.add("hidden");
       });
 
       function formatCurrency(
@@ -1653,6 +1842,31 @@ https://pelda.hu/szamla2.png"
                 ? inputItem.data
                 : `data:${inputItem.mimeType || "image/jpeg"};base64,${inputItem.data}`
               : inputItem.data;
+        let isTextPrompt = false;
+
+        if (item.source && item.source.startsWith("Szöveges prompt:")) {
+          isTextPrompt = true;
+          modalTextPrompt.textContent = item.source.replace("Szöveges prompt: ", "");
+          modalTextPrompt.classList.remove("hidden");
+          modalImage.classList.add("hidden");
+          modalImageLink.classList.add("hidden");
+        } else {
+          isTextPrompt = false;
+          modalTextPrompt.classList.add("hidden");
+          modalImage.classList.remove("hidden");
+          modalImageLink.classList.remove("hidden");
+          
+          if (inputItem) {
+            imageSrc =
+              inputItem.type === "base64"
+                ? inputItem.data.startsWith("data:")
+                  ? inputItem.data
+                  : `data:${inputItem.mimeType || "image/jpeg"};base64,${inputItem.data}`
+                : inputItem.data;
+          }
+
+          modalImage.src = imageSrc;
+          modalImageLink.href = imageSrc;
         }
 
         modalImage.src = imageSrc;
@@ -1903,6 +2117,57 @@ https://pelda.hu/szamla2.png"
         editModal.close();
       });
 
+      // E-SZÁMLA KIÁLLÍTÁSA (Számlázz.hu)
+      issueSzamlazzHuBtn.addEventListener("click", async () => {
+        if (activeEditIndex === -1 || !currentEditingData) return;
+        const currentResult = lastProcessedResults[activeEditIndex];
+        if (!currentResult || !currentResult.dbId) {
+          showToast("Kérjük, először mentsd el a felhőbe a módosításokat!", "info");
+          return;
+        }
+
+        // 1. Megpróbáljuk elküldeni az E-számla készítés hívást
+        issueSzamlazzHuBtn.disabled = true;
+        const originalText = issueSzamlazzHuBtn.innerHTML;
+        issueSzamlazzHuBtn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Küldés...';
+
+        try {
+          const res = await fetch(`${API_BASE}/api/szamlazz/issue/${currentResult.dbId}`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authToken}`,
+            },
+            body: JSON.stringify({
+              data: currentEditingData // átadjuk a frissített form-ot, bár opcionális, a backend Zoddal parsolja
+            }),
+          });
+          const data = await res.json();
+
+          if (res.ok && data.success) {
+            showToast(`Sikeres e-számla kiállítás! Számlaszám: ${data.invoiceNumber}`, "success");
+            
+            // Ha van letölthető PDF
+            if (data.pdfBase64) {
+              const linkSource = `data:application/pdf;base64,${data.pdfBase64}`;
+              const downloadLink = document.createElement("a");
+              downloadLink.href = linkSource;
+              downloadLink.download = `${data.invoiceNumber || 'eszamla'}.pdf`;
+              downloadLink.click();
+            }
+
+            editModal.close();
+          } else {
+            showToast(data.error || "Ismeretlen hiba a kiállítás során.", "error");
+          }
+        } catch (err) {
+          showToast("Hálózati hiba a Számlázz.hu hívásakor.", "error");
+        } finally {
+          issueSzamlazzHuBtn.disabled = false;
+          issueSzamlazzHuBtn.innerHTML = originalText;
+        }
+      });
+
       cancelModalBtn.addEventListener("click", () => editModal.close());
 
       // ==========================================
@@ -2128,6 +2393,48 @@ https://pelda.hu/szamla2.png"
           for (const u of urls) {
             items.push({ type: "url", data: u });
           }
+        } else if (currentMode === "text") {
+          const textPrompt = textPromptInput.value.trim();
+          if (!textPrompt) {
+            showToast("Írd be a szöveges utasítást!", "info");
+            return;
+          }
+
+          processBtn.disabled = true;
+          processBtn.innerHTML = '<span class="loading loading-spinner"></span> AI Feldolgozás...';
+
+          try {
+            const res = await fetch(`${API_BASE}/api/invoices/parse-text`, {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authToken}`,
+              },
+              body: JSON.stringify({ textPrompt }),
+            });
+            const data = await res.json();
+            
+            if (!res.ok || !data.success) {
+              throw new Error(data.error || "Hiba a feldolgozás során");
+            }
+
+            // Ha kész van, kártya létrehozása
+            lastProcessedResults = [data.result, ...lastProcessedResults];
+            inputItemsCache = [{ type: "url", data: "" }, ...inputItemsCache]; // mock cache to keep indexes matching
+            
+            checkCurrentSession(); // refresh credits
+            renderResultsCards();
+            showToast("Sikeres szöveg-értelmezés!", "success");
+            textPromptInput.value = "";
+            exportCsvBtn.classList.remove("hidden");
+
+          } catch (err: any) {
+            showToast(err.message, "error");
+          } finally {
+            processBtn.disabled = false;
+            processBtn.textContent = "Feldolgozás Indítása";
+          }
+          return; // A szöveges mód végzett, ne menjen tovább a fájlos feldolgozóra!
         }
 
         inputItemsCache = items;

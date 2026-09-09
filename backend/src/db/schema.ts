@@ -8,6 +8,11 @@ export const users = pgTable('users', {
   passwordHash: text('password_hash').notNull(),
   tier: text('tier').default('free').notNull(), // 'free' | 'pro'
   monthlyCredits: integer('monthly_credits').default(15).notNull(), // Ingyenes kezdő számlakeret
+  szamlazzHuApiKey: text('szamlazz_hu_api_key'),
+  navTechnicalUser: text('nav_technical_user'),
+  navTechnicalPassword: text('nav_technical_password'),
+  navSignKey: text('nav_sign_key'),
+  navExchangeKey: text('nav_exchange_key'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

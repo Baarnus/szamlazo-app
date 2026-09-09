@@ -366,8 +366,6 @@ app.post('/api/invoices/parse-text', async (c) => {
       .set({ monthlyCredits: sql`${users.monthlyCredits} - 1`, updatedAt: new Date() })
       .where(eq(users.id, user.id));
 
-    const textPromptWithSchema = `${prompt}\n\nA felhasználó kérése: "${textPrompt}"\n\nFeltételezd az alapértelmezett áfakulcsokat, és pontosan töltsd ki a fenti sémát!`;
-
     const geminiRes = await fetch(
       'https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent',
       {
@@ -377,8 +375,57 @@ app.post('/api/invoices/parse-text', async (c) => {
           'x-goog-api-key': GEMINI_API_KEY.trim()
         },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: textPromptWithSchema }] }],
-          generationConfig: { response_mime_type: 'application/json', temperature: 0.1 },
+          systemInstruction: {
+            parts: [{
+              text: "Te egy szigorú számlázási asszisztens vagy. A feladatod KIZÁRÓLAG számla adatok strukturált kinyerése. Ha a felhasználó bármi mást (pl. verset, kódolást, általános beszélgetést) kér, tagadd meg és írj egy hibaüzenetet a 'create_invoice_data' hívás helyett."
+            }]
+          },
+          contents: [{ parts: [{ text: textPrompt }] }],
+          tools: [{
+            functionDeclarations: [{
+              name: "create_invoice_data",
+              description: "Kinyeri és előkészíti a számla kibocsátásához szükséges adatokat a felhasználó szövegéből.",
+              parameters: {
+                type: "OBJECT",
+                properties: {
+                  kiallito_neve: { type: "STRING" },
+                  kiallito_adoszam: { type: "STRING" },
+                  kiallito_orszag: { type: "STRING" },
+                  vevo_neve: { type: "STRING" },
+                  vevo_adoszam: { type: "STRING" },
+                  szamlaszam: { type: "STRING" },
+                  kelt_datum: { type: "STRING" },
+                  teljesites_datum: { type: "STRING" },
+                  fizetesi_hatarido: { type: "STRING" },
+                  penznem: { type: "STRING" },
+                  tetelek: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        megnevezes: { type: "STRING" },
+                        mennyiseg: { type: "NUMBER" },
+                        egysegar: { type: "NUMBER" },
+                        afa_szazalek: { type: "NUMBER" },
+                        netto_ar: { type: "NUMBER" },
+                        afa_ertek: { type: "NUMBER" },
+                        brutto_ar: { type: "NUMBER" }
+                      }
+                    }
+                  },
+                  vegosszeg_netto: { type: "NUMBER" },
+                  vegosszeg_afa: { type: "NUMBER" },
+                  vegosszeg_brutto: { type: "NUMBER" }
+                }
+              }
+            }]
+          }],
+          toolConfig: {
+            functionCallingConfig: {
+              mode: "AUTO"
+            }
+          },
+          generationConfig: { temperature: 0.1 },
         }),
       }
     );
@@ -386,10 +433,14 @@ app.post('/api/invoices/parse-text', async (c) => {
     if (!geminiRes.ok) throw new Error(`Gemini API hiba: ${await geminiRes.text()}`);
     
     const resultJson: any = await geminiRes.json();
-    const rawText = resultJson.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!rawText) throw new Error('Nem érkezett kinyerhető szöveg az AI-tól.');
+    
+    // Ellenőrizzük, hogy meghívta-e a funkciót
+    const call = resultJson.candidates?.[0]?.content?.parts?.[0]?.functionCall;
+    if (!call || call.name !== 'create_invoice_data') {
+       throw new Error('Az AI megtagadta a kérést. Kérlek, csak számlázással kapcsolatos utasításokat adj meg!');
+    }
 
-    const parsedJson = JSON.parse(rawText);
+    const parsedJson = call.args;
     const zodResult = InvoiceDataSchema.safeParse(parsedJson);
 
     const isValid = zodResult.success;
@@ -399,7 +450,7 @@ app.post('/api/invoices/parse-text', async (c) => {
     // Mentés DB-be
     const inserted = await db.insert(invoices).values({
       userId: user.id,
-      source: 'Szöveges prompt: ' + textPrompt.substring(0, 30) + '...',
+      source: 'Szöveges prompt: ' + textPrompt,
       imageUrl: null,
       data: finalData,
       isValid: isValid,

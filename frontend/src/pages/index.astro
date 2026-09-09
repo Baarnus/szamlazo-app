@@ -492,8 +492,6 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
               <textarea
                 id="urlInput"
                 rows="3"
-                placeholder="https://pelda.hu/szamla1.jpg
-https://pelda.hu/szamla2.png"
                 placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png"
                 class="textarea textarea-bordered w-full font-mono text-xs"
               ></textarea>
@@ -810,7 +808,7 @@ https://pelda.hu/szamla2.png"
             <div
               class="w-full flex justify-between items-center px-2 py-1 mb-1"
             >
-              <span class="text-xs text-base-content/60 font-medium"
+              <span id="modalImageLabel" class="text-xs text-base-content/60 font-medium"
                 >Eredeti számlakép</span
               >
               <a
@@ -1198,6 +1196,9 @@ https://pelda.hu/szamla2.png"
       const modalImage = document.getElementById(
         "modalImage",
       ) as HTMLImageElement;
+      const modalImageLabel = document.getElementById(
+        "modalImageLabel",
+      ) as HTMLSpanElement;
       const modalImageLink = document.getElementById(
         "modalImageLink",
       ) as HTMLAnchorElement;
@@ -1259,7 +1260,6 @@ https://pelda.hu/szamla2.png"
         "cancelModalBtn",
       ) as HTMLButtonElement;
 
-      let currentMode: "upload" | "url" = "upload";
       let currentMode: "upload" | "url" | "text" = "upload";
       let selectedFiles: File[] = [];
       let inputItemsCache: ImageInputItem[] = [];
@@ -1835,23 +1835,18 @@ https://pelda.hu/szamla2.png"
 
         const inputItem = inputItemsCache[index];
         let imageSrc = "";
-        if (inputItem) {
-          imageSrc =
-            inputItem.type === "base64"
-              ? inputItem.data.startsWith("data:")
-                ? inputItem.data
-                : `data:${inputItem.mimeType || "image/jpeg"};base64,${inputItem.data}`
-              : inputItem.data;
         let isTextPrompt = false;
 
         if (item.source && item.source.startsWith("Szöveges prompt:")) {
           isTextPrompt = true;
+          modalImageLabel.textContent = "Felhasználói prompt utasítás";
           modalTextPrompt.textContent = item.source.replace("Szöveges prompt: ", "");
           modalTextPrompt.classList.remove("hidden");
           modalImage.classList.add("hidden");
           modalImageLink.classList.add("hidden");
         } else {
           isTextPrompt = false;
+          modalImageLabel.textContent = "Eredeti számlakép";
           modalTextPrompt.classList.add("hidden");
           modalImage.classList.remove("hidden");
           modalImageLink.classList.remove("hidden");
@@ -1868,9 +1863,6 @@ https://pelda.hu/szamla2.png"
           modalImage.src = imageSrc;
           modalImageLink.href = imageSrc;
         }
-
-        modalImage.src = imageSrc;
-        modalImageLink.href = imageSrc;
 
         editKiallitoNeve.value = currentEditingData?.kiallito_neve || "";
         editKiallitoAdoszam.value = currentEditingData?.kiallito_adoszam || "";
@@ -2375,7 +2367,7 @@ https://pelda.hu/szamla2.png"
             const base64 = await fileToBase64(file);
             items.push({ type: "base64", data: base64, mimeType: file.type });
           }
-        } else {
+        } else if (currentMode === "url") {
           const urls = urlInput.value
             .split("\n")
             .map((u) => u.trim())

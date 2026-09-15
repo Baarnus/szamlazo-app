@@ -1,0 +1,82 @@
+---
+import "../styles/global.css";
+---
+
+<html lang="hu" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Adatvédelmi Tájékoztató (GDPR) - Számla AI</title>
+  </head>
+  <body class="min-h-screen bg-base-100 text-base-content flex flex-col">
+    <main class="flex-grow max-w-4xl mx-auto p-4 lg:p-8 space-y-6">
+      <a href="/" class="btn btn-sm btn-ghost mb-4">← Vissza a főoldalra</a>
+      
+      <article class="prose prose-sm md:prose-base prose-invert max-w-none">
+        <h1>Adatvédelmi Tájékoztató (GDPR) és Cookie (Süti) Szabályzat</h1>
+        <p><strong>Hatálybalépés dátuma: 2026. [Hónap] [Nap].</strong></p>
+        <p>A <strong>[Cégnév]</strong> (a továbbiakban: <strong>Adatkezelő</strong>) számára kiemelten fontos a Felhasználók személyes adatainak védelme. Jelen tájékoztató a Számlázó AI alkalmazás adatkezelési gyakorlatát mutatja be az Európai Unió Általános Adatvédelmi Rendelete (GDPR) alapján.</p>
+
+        <h2>1. Adatkezelő Adatai</h2>
+        <ul>
+            <li><strong>Cégnév:</strong> [Cégnév]</li>
+            <li><strong>Székhely:</strong> [Székhely]</li>
+            <li><strong>Adószám:</strong> [Adószám]</li>
+            <li><strong>Email:</strong> [Kapcsolat Email]</li>
+        </ul>
+
+        <h2>2. Kezelt Adatok Köre és a Kezelés Célja</h2>
+        <p><strong>2.1. Regisztrációs adatok:</strong></p>
+        <ul>
+            <li><strong>Kezelt adatok:</strong> E-mail cím, jelszó (titkosítva).</li>
+            <li><strong>Adatkezelés célja:</strong> Felhasználói fiók létrehozása, azonosítás, belépés biztosítása.</li>
+            <li><strong>Jogalap:</strong> Szerződés teljesítése (GDPR 6. cikk (1) bek. b) pont).</li>
+        </ul>
+
+        <p><strong>2.2. Feltöltött dokumentumok és számlaképek:</strong></p>
+        <ul>
+            <li><strong>Kezelt adatok:</strong> A Felhasználó által feltöltött számlák, nyugták képei, PDF fájljai (ezek tartalmazhatnak személyes adatokat: harmadik fél neve, címe).</li>
+            <li><strong>Adatkezelés célja:</strong> OCR (optikai karakterfelismerés) és adatkinyerés végrehajtása az AI segítségével.</li>
+            <li><strong>Adatkezelés módja és tárolása:</strong> A képek az S3 kompatibilis MinIO felhőtárhelyen kerülnek átmeneti/végleges tárolásra a feldolgozáshoz.</li>
+            <li><strong>Jogalap:</strong> A Felhasználó kifejezett kérése és a szolgáltatás nyújtása (Szerződés teljesítése).</li>
+        </ul>
+
+        <p><strong>2.3. Külső API kulcsok:</strong></p>
+        <ul>
+            <li><strong>Kezelt adatok:</strong> Számlázz.hu API kulcsok.</li>
+            <li><strong>Adatkezelés célja:</strong> A Számlázz.hu felé történő automatikus számlakiállítás biztosítása. A kulcsok titkosítva kerülnek tárolásra az adatbázisban.</li>
+        </ul>
+
+        <h2>3. Adatfeldolgozók (Külső Szolgáltatók)</h2>
+        <p>A Szolgáltatás működéséhez az alábbi adatfeldolgozókat vesszük igénybe:</p>
+        <ol>
+            <li><strong>Google Ireland Ltd. (Gemini AI API):</strong> A feltöltött képek és szövegek feldolgozása. A Google a beküldött adatokat NEM használja fel saját modelljei tanítására (Enterprise API feltételek).</li>
+            <li><strong>Stripe Payments Europe, Ltd.:</strong> Bankkártyás fizetések feldolgozása. (Az Adatkezelő bankkártya adatokat nem lát és nem tárol).</li>
+            <li><strong>Tárhelyszolgáltató ([Tárhely Cég Neve]):</strong> A PostgreSQL adatbázis és a fájl tárolás (MinIO) üzemeltetése (Szerver helye: EU / Németország).</li>
+            <li><strong>Számlázz.hu (KBOSS.hu Kft.):</strong> Elektronikus számlák kiállítása a Felhasználó utasítása alapján.</li>
+        </ol>
+
+        <h2>4. Cookie (Süti) Szabályzat és a Google Consent Mode v2</h2>
+        <p>Weboldalunk sütiket használ a működés biztosítása és a marketing tevékenység optimalizálása érdekében. A látogató érkezésekor egy "Süti (Cookie) Beállítások" ablak ugrik fel, ahol az engedélyek testreszabhatók.</p>
+        
+        <h3>Alkalmazott Sütik Kategóriái:</h3>
+        <p><strong>4.1. Szigorúan Szükséges Sütik (Működéshez elengedhetetlenek):</strong><br>
+        Ezek a sütik/tárolók a rendszer alapvető működéséhez (pl. bejelentkezés) szükségesek. Ezek elfogadása nélkül a rendszer nem tud működni. (Jogalap: Jogos érdek). Ilyen például az azonosításra használt <code>szamla_ai_token</code> a böngésző <code>localStorage</code> tárolójában.</p>
+        
+        <p><strong>4.2. Analitikai és Marketing Sütik (Opcionális):</strong><br>
+        A weboldal <strong>Google Ads</strong> és <strong>Google Analytics</strong> követőkódokat tartalmazhat, amelyek a Google Consent Mode v2 (2024. márciusi EU-s előírások) szerint működnek.<br>
+        Alapértelmezetten ezek a kódok <strong>blokkolva vannak</strong> (<code>denied</code> állapot). A Google rendszerei csak akkor kezdik el a látogatói adatok gyűjtését (pl. hirdetésekből érkező konverziók mérése, remarketing), ha a Felhasználó a süti sávon kifejezetten az <strong>"Elfogadom"</strong> gombra kattint (<code>granted</code> állapot).</p>
+
+        <h2>5. Érintettek Jogai</h2>
+        <p>A Felhasználók a GDPR alapján jogosultak:</p>
+        <ul>
+            <li>Tájékoztatást kérni adataik kezeléséről.</li>
+            <li>Kérni adataik helyesbítését vagy törlését ("elfeledtetéshez való jog").</li>
+            <li>Tiltakozni az adatkezelés ellen.</li>
+        </ul>
+        <p>Kérelmeket a <strong>[Kapcsolat Email]</strong> címre lehet benyújtani.</p>
+      </article>
+    </main>
+  </body>
+</html>
+

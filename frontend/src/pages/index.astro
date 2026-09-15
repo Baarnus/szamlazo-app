@@ -7,6 +7,24 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- Google Consent Mode v2 Default Setup -->
+    <script is:inline>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('consent', 'default', {
+        'analytics_storage': 'denied',
+        'ad_storage': 'denied',
+        'ad_user_data': 'denied',
+        'ad_personalization': 'denied',
+        'wait_for_update': 500
+      });
+      gtag('set', 'url_passthrough', true);
+    </script>
+    
+    <!-- CookieConsent V3 CSS -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@v3.0.0/dist/cookieconsent.css">
+
     <script
       defer
       src="https://umami-89-58-60-86.sslip.io/script.js"
@@ -592,6 +610,17 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       </main>
     </div>
 
+    <!-- LÁBLÉC (JOGI DOKUMENTUMOK) -->
+    <footer class="footer footer-center p-6 bg-base-200 text-base-content rounded-t-lg mt-10">
+      <div class="flex flex-wrap justify-center gap-4">
+        <a href="/aszf" class="link link-hover text-sm">Általános Szerződési Feltételek (ÁSZF)</a>
+        <a href="/adatvedelem" class="link link-hover text-sm">Adatvédelmi Tájékoztató (GDPR)</a>
+      </div>
+      <div>
+        <p class="text-xs opacity-70">Copyright © 2026 - Minden jog fenntartva | Számla AI</p>
+      </div>
+    </footer>
+
     <!-- KREDIT VÁSÁRLÁS MODAL (Stripe) -->
     <dialog id="billingModal" class="modal modal-bottom sm:modal-middle">
       <div class="modal-box max-w-2xl bg-base-100 p-6">
@@ -719,6 +748,9 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
               class="input input-sm input-bordered w-full"
               placeholder="••••••••"
             />
+            <div class="flex justify-end mt-1" id="forgotPasswordContainer">
+              <a href="#" id="forgotPasswordLink" class="text-xs text-primary link link-hover">Elfelejtetted a jelszavad?</a>
+            </div>
           </div>
 
           <div
@@ -777,6 +809,28 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
             <button type="submit" id="settingsSubmitBtn" class="btn btn-primary btn-sm w-full">Mentés</button>
           </div>
         </form>
+
+        <div class="divider my-4">Veszélyzóna</div>
+        <div class="space-y-2 text-center">
+          <p class="text-xs text-base-content/70">A fiók törlésével minden adatod, feltöltött számlád és kredited véglegesen törlődik. A művelet nem visszavonható!</p>
+          <button type="button" id="deleteAccountBtn" class="btn btn-error btn-outline btn-sm w-full">Fiók végleges törlése (GDPR)</button>
+        </div>
+      </div>
+    </dialog>
+
+    <!-- DELETE ACCOUNT CONFIRM MODAL -->
+    <dialog id="deleteAccountConfirmModal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box bg-base-100">
+        <h3 class="font-bold text-lg text-error">Fiók végleges törlése</h3>
+        <p class="py-4 text-sm text-base-content/80">
+          Biztos vagy benne? A fiókod, minden beállításod és feltöltött számlád <b>véglegesen</b> törlődik. Ezt a műveletet <b>nem lehet visszavonni</b>!
+        </p>
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn btn-sm btn-ghost">Mégsem</button>
+          </form>
+          <button type="button" id="confirmDeleteAccountBtn" class="btn btn-sm btn-error">Igen, törlöm a fiókom</button>
+        </div>
       </div>
     </dialog>
 
@@ -998,11 +1052,16 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
           <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost"
             >Mégse</button
           >
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-4">
+            <label class="label cursor-pointer justify-start gap-2 max-w-xs text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
+              <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-xs checkbox-secondary" />
+              <span class="label-text text-[10px] leading-tight text-base-content/70">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
+            </label>
             <button
               type="button"
               id="issueSzamlazzHuBtn"
-              class="btn btn-sm btn-secondary"
+              class="btn btn-sm btn-secondary shrink-0"
+              disabled
             >
               🧾 E-számla Kiállítása
             </button>
@@ -1113,7 +1172,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         "openBillingBtn",
       ) as HTMLButtonElement;
 
-      let authMode: "login" | "register" = "login";
+      let authMode: "login" | "register" | "reset" = "login";
       let authToken: string | null = localStorage.getItem("szamla_ai_token");
 
       // UI Elemek
@@ -1250,9 +1309,17 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       const displayBrutto = document.getElementById(
         "displayBrutto",
       ) as HTMLElement;
+      const legalLiabilityCheckbox = document.getElementById(
+        "legalLiabilityCheckbox",
+      ) as HTMLInputElement;
       const issueSzamlazzHuBtn = document.getElementById(
         "issueSzamlazzHuBtn",
       ) as HTMLButtonElement;
+      
+      legalLiabilityCheckbox.addEventListener("change", (e) => {
+        issueSzamlazzHuBtn.disabled = !legalLiabilityCheckbox.checked;
+      });
+
       const saveChangesBtn = document.getElementById(
         "saveChangesBtn",
       ) as HTMLButtonElement;
@@ -1271,17 +1338,44 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       // ==========================================
       // AUTH KEZELÉS & NÉZETVÁLTÁS
       // ==========================================
+      const urlParams = new URLSearchParams(window.location.search);
+      const resetToken = urlParams.get("resetToken");
+      if (resetToken) authMode = "reset";
 
-      function setAuthModalMode(mode: "login" | "register") {
+      const authModalTitle = document.getElementById("authModalTitle") as HTMLHeadingElement;
+      const forgotPasswordContainer = document.getElementById("forgotPasswordContainer") as HTMLDivElement;
+      
+      function setAuthModalMode(mode: "login" | "register" | "reset") {
         authMode = mode;
+        const emailDiv = authEmail.parentElement;
+        
         if (mode === "login") {
+          authModalTitle.textContent = "Bejelentkezés";
           authTabLogin.classList.add("tab-active");
           authTabRegister.classList.remove("tab-active");
           authSubmitBtn.textContent = "Bejelentkezés";
-        } else {
+          if (forgotPasswordContainer) forgotPasswordContainer.classList.remove("hidden");
+          if (emailDiv) emailDiv.classList.remove("hidden");
+          authEmail.required = true;
+          authPassword.placeholder = "••••••••";
+        } else if (mode === "register") {
+          authModalTitle.textContent = "Regisztráció";
           authTabRegister.classList.add("tab-active");
           authTabLogin.classList.remove("tab-active");
           authSubmitBtn.textContent = "Ingyenes Regisztráció (15 kredit)";
+          if (forgotPasswordContainer) forgotPasswordContainer.classList.add("hidden");
+          if (emailDiv) emailDiv.classList.remove("hidden");
+          authEmail.required = true;
+          authPassword.placeholder = "••••••••";
+        } else if (mode === "reset") {
+          authModalTitle.textContent = "Új jelszó beállítása";
+          authTabLogin.style.display = "none";
+          authTabRegister.style.display = "none";
+          authSubmitBtn.textContent = "Jelszó mentése";
+          if (forgotPasswordContainer) forgotPasswordContainer.classList.add("hidden");
+          if (emailDiv) emailDiv.classList.add("hidden");
+          authEmail.required = false;
+          authPassword.placeholder = "Új jelszó (min. 6 karakter)";
         }
       }
 
@@ -1290,10 +1384,53 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         authModal.showModal();
       });
 
+      if (resetToken && authModal) {
+        setAuthModalMode("reset");
+        authModal.showModal();
+      }
+
       authTabLogin.addEventListener("click", () => setAuthModalMode("login"));
       authTabRegister.addEventListener("click", () =>
         setAuthModalMode("register"),
       );
+      
+      const forgotPasswordLink = document.getElementById("forgotPasswordLink") as HTMLAnchorElement;
+      if (forgotPasswordLink) {
+        forgotPasswordLink.addEventListener("click", async (e) => {
+          e.preventDefault();
+          if (!authEmail.value) {
+            authErrorAlert.textContent = "Kérjük, add meg az e-mail címedet a jelszó visszaállításához!";
+            authErrorAlert.classList.remove("hidden");
+            return;
+          }
+          authErrorAlert.classList.add("hidden");
+          const originalText = authSubmitBtn.textContent;
+          authSubmitBtn.textContent = "Folyamatban...";
+          authSubmitBtn.disabled = true;
+          
+          try {
+            const res = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ email: authEmail.value })
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              showToast("Jelszó visszaállító link elküldve az e-mail címedre (Nézd meg a Spam mappát is!).", "success");
+              authModal.close();
+            } else {
+              authErrorAlert.textContent = data.error || "Hiba történt a kiküldés során.";
+              authErrorAlert.classList.remove("hidden");
+            }
+          } catch (err) {
+            authErrorAlert.textContent = "Hálózati hiba történt.";
+            authErrorAlert.classList.remove("hidden");
+          } finally {
+            if (authSubmitBtn.textContent === "Folyamatban...") authSubmitBtn.textContent = originalText || "Bejelentkezés";
+            authSubmitBtn.disabled = false;
+          }
+        });
+      }
 
       // Landing CTA gombok eseményei
       document.querySelectorAll(".hero-register-cta").forEach((btn) => {
@@ -1309,6 +1446,25 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         authSubmitBtn.disabled = true;
 
         try {
+          if (authMode === "reset") {
+            const res = await fetch(`${API_BASE}/api/auth/reset-password`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                token: resetToken,
+                newPassword: authPassword.value,
+              }),
+            });
+            const data = await res.json();
+            if (!res.ok || !data.success) {
+              throw new Error(data.error || "Hiba történt a jelszó visszaállításakor.");
+            }
+            
+            showToast("Sikeres jelszó visszaállítás! Kérjük, jelentkezz be.", "success");
+            window.location.href = "/";
+            return;
+          }
+          
           const endpoint =
             authMode === "login" ? "/api/auth/login" : "/api/auth/register";
           const res = await fetch(`${API_BASE}${endpoint}`, {
@@ -1485,6 +1641,64 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
           settingsErrorAlert.classList.remove("hidden");
         } finally {
           settingsSubmitBtn.disabled = false;
+        }
+      });
+
+      document.getElementById("deleteAccountBtn")?.addEventListener("click", async (e) => {
+        if (confirm("BIZTOS VAGY BENNE? A fiókod, minden beállításod és feltöltött számlád VÉGLEGESEN törlődik. Ezt nem lehet visszavonni!")) {
+          const btn = e.currentTarget as HTMLButtonElement;
+          btn.disabled = true;
+          btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Törlés folyamatban...';
+          
+          try {
+            const res = await fetch(`${API_BASE}/api/settings/account`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${authToken}` }
+            });
+            const data = await res.json();
+            if (res.ok && data.success) {
+              settingsModal.close();
+              document.getElementById("logoutBtn")?.click(); // Automatikus kijelentkeztetés
+              showToast("Fiókodat sikeresen töröltük a rendszerből (GDPR).", "success");
+            } else {
+              showToast(data.error || "Hiba a törlés során.", "error");
+              btn.disabled = false;
+              btn.innerHTML = 'Fiók végleges törlése (GDPR)';
+            }
+          } catch(err) {
+            showToast("Hálózati hiba a fiók törlésekor.", "error");
+      const deleteAccountConfirmModal = document.getElementById("deleteAccountConfirmModal") as HTMLDialogElement;
+      
+      document.getElementById("deleteAccountBtn")?.addEventListener("click", () => {
+        deleteAccountConfirmModal.showModal();
+      });
+
+      document.getElementById("confirmDeleteAccountBtn")?.addEventListener("click", async (e) => {
+        const btn = e.currentTarget as HTMLButtonElement;
+        btn.disabled = true;
+        btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Törlés folyamatban...';
+        
+        try {
+          const res = await fetch(`${API_BASE}/api/settings/account`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${authToken}` }
+          });
+          const data = await res.json();
+          if (res.ok && data.success) {
+            deleteAccountConfirmModal.close();
+            settingsModal.close();
+            document.getElementById("logoutBtn")?.click(); // Automatikus kijelentkeztetés
+            showToast("Fiókodat sikeresen töröltük a rendszerből (GDPR).", "success");
+          } else {
+            showToast(data.error || "Hiba a törlés során.", "error");
+            btn.disabled = false;
+            btn.innerHTML = 'Fiók végleges törlése (GDPR)';
+            btn.innerHTML = 'Igen, törlöm a fiókom';
+          }
+        } catch(err) {
+          showToast("Hálózati hiba a fiók törlésekor.", "error");
+          btn.disabled = false;
+          btn.innerHTML = 'Igen, törlöm a fiókom';
         }
       });
 
@@ -1827,6 +2041,9 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       // ==========================================
 
       function openEditModal(index: number) {
+        legalLiabilityCheckbox.checked = false;
+        issueSzamlazzHuBtn.disabled = true;
+        
         const item = lastProcessedResults[index];
         if (!item || !item.data) return;
 
@@ -2155,7 +2372,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         } catch (err) {
           showToast("Hálózati hiba a Számlázz.hu hívásakor.", "error");
         } finally {
-          issueSzamlazzHuBtn.disabled = false;
+          issueSzamlazzHuBtn.disabled = !legalLiabilityCheckbox.checked;
           issueSzamlazzHuBtn.innerHTML = originalText;
         }
       });
@@ -2243,6 +2460,13 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
                       </svg>
                       Ellenőrzés / Szerkesztés
                     </button>
+                    ${item.dbId ? `
+                    <button type="button" class="btn btn-sm btn-outline btn-error delete-card-btn" data-id="${item.dbId}" title="Törlés">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                    ` : ''}
                   </div>
                 </div>
 
@@ -2284,6 +2508,40 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
             .querySelector(".edit-card-btn")
             ?.addEventListener("click", () => {
               openEditModal(index);
+            });
+
+          card
+            .querySelector(".delete-card-btn")
+            ?.addEventListener("click", async (e) => {
+              const btn = e.currentTarget as HTMLButtonElement;
+              const dbId = btn.getAttribute("data-id");
+              if (!dbId) return;
+
+              if (confirm("Biztosan törölni szeretnéd ezt a számlát? (A módosítás nem visszavonható)")) {
+                btn.disabled = true;
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+                try {
+                  const res = await fetch(`${API_BASE}/api/invoices/${dbId}`, {
+                    method: 'DELETE',
+                    headers: { Authorization: `Bearer ${authToken}` }
+                  });
+                  const data = await res.json();
+                  if (data.success) {
+                    showToast("Számla sikeresen törölve.", "success");
+                    // Eltávolítjuk a UI-ról
+                    lastProcessedResults.splice(index, 1);
+                    renderResultsCards();
+                  } else {
+                    showToast(data.error || "Hiba történt a törlés során.", "error");
+                  }
+                } catch (err) {
+                  showToast("Hálózati hiba a törléskor.", "error");
+                } finally {
+                  btn.disabled = false;
+                  btn.innerHTML = originalHtml;
+                }
+              }
             });
         }
 
@@ -2556,6 +2814,99 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
       // Induláskori munkamenet vizsgálat
       checkCurrentSession();
+    </script>
+    
+    <!-- CookieConsent V3 JS -->
+    <script type="module" is:inline>
+      import 'https://cdn.jsdelivr.net/gh/orestbida/cookieconsent@v3.0.0/dist/cookieconsent.umd.js';
+      
+      const toggleScroll = (isShown) => {
+        document.documentElement.style.overflow = isShown ? 'hidden' : '';
+      };
+
+      CookieConsent.run({
+        guiOptions: {
+          consentModal: {
+            layout: "box",
+            position: "bottom left",
+            equalWeightButtons: true,
+            flipButtons: false
+          },
+          preferencesModal: {
+            layout: "box",
+            position: "right",
+            equalWeightButtons: true,
+            flipButtons: false
+          }
+        },
+        categories: {
+          necessary: { readOnly: true },
+          analytics: {},
+          marketing: {}
+        },
+        language: {
+          default: "hu",
+          autoDetect: "browser",
+          translations: {
+            hu: {
+              consentModal: {
+                title: "Az oldal sütiket használ",
+                description: "Weboldalunk sütiket használ a működés biztosítása, az analitika és a célzott marketing érdekében.",
+                acceptAllBtn: "Mind elfogadása",
+                acceptNecessaryBtn: "Csak szükségesek",
+                showPreferencesBtn: "Testreszabás"
+              },
+              preferencesModal: {
+                title: "Süti (Cookie) Beállítások",
+                acceptAllBtn: "Mind elfogadása",
+                acceptNecessaryBtn: "Csak szükségesek",
+                savePreferencesBtn: "Beállítások mentése",
+                closeIconLabel: "Bezárás",
+                sections: [
+                  {
+                    title: "Süti Használat",
+                    description: "Itt testreszabhatja a sütik kategóriáit."
+                  },
+                  {
+                    title: "Szigorúan Szükséges Sütik <span class=\"pm__badge\">Mindig aktív</span>",
+                    description: "Ezek a sütik a weboldal alapvető működéséhez szükségesek, például a bejelentkezéshez (localStorage).",
+                    linkedCategory: "necessary"
+                  },
+                  {
+                    title: "Analitikai Sütik",
+                    description: "Ezek a sütik segítenek nekünk megérteni, hogyan használják a látogatók a weboldalt.",
+                    linkedCategory: "analytics"
+                  },
+                  {
+                    title: "Marketing Sütik",
+                    description: "Ezek a sütik hirdetések személyre szabásához szükségesek (Google Ads).",
+                    linkedCategory: "marketing"
+                  }
+                ]
+              }
+            }
+          }
+        },
+        onFirstConsent: ({ cookie }) => updateGtmConsent(cookie.categories),
+        onConsent: ({ cookie }) => updateGtmConsent(cookie.categories),
+        onChange: ({ changedCategories, cookie }) => updateGtmConsent(cookie.categories),
+        onModalShow: () => toggleScroll(true),
+        onModalHide: () => toggleScroll(false)
+      });
+      
+      function updateGtmConsent(categories) {
+          const analyticsConsent = categories.includes('analytics') ? 'granted' : 'denied';
+          const marketingConsent = categories.includes('marketing') ? 'granted' : 'denied';
+          
+          if(typeof window.gtag === 'function') {
+            window.gtag('consent', 'update', {
+                'analytics_storage': analyticsConsent,
+                'ad_storage': marketingConsent,
+                'ad_user_data': marketingConsent,
+                'ad_personalization': marketingConsent
+            });
+          }
+      }
     </script>
   </body>
 </html>

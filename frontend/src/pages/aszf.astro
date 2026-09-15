@@ -1,0 +1,46 @@
+---
+import "../styles/global.css";
+---
+
+<html lang="hu" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ÁSZF - Számla AI</title>
+  </head>
+  <body class="min-h-screen bg-base-100 text-base-content flex flex-col">
+    <main class="flex-grow max-w-4xl mx-auto p-4 lg:p-8 space-y-6">
+      <a href="/" class="btn btn-sm btn-ghost mb-4">← Vissza a főoldalra</a>
+      
+      <article class="prose prose-sm md:prose-base prose-invert max-w-none">
+        <h1>Általános Szerződési Feltételek (ÁSZF)</h1>
+        <p><strong>Hatálybalépés dátuma: 2026. [Hónap] [Nap].</strong></p>
+
+        <p>Jelen Általános Szerződési Feltételek (a továbbiakban: <strong>ÁSZF</strong>) a <strong>[Cégnév / Egyéni Vállalkozó neve]</strong> (székhely: [Székhely], adószám: [Adószám], a továbbiakban: <strong>Szolgáltató</strong>) által üzemeltetett Számlázó AI SaaS (Software as a Service) szoftver (a továbbiakban: <strong>Szoftver</strong>) igénybevételének feltételeit szabályozza.</p>
+
+        <h2>1. Alapvető rendelkezések és a célcsoport (Kizárólag B2B)</h2>
+        <p><strong>1.1.</strong> A Szolgáltató egy felhőalapú (SaaS) mesterséges intelligencia (OCR) alapú adminisztrációs eszközt nyújt, amely megkönnyíti a papíralapú és kézi számlák digitalizálását, valamint elektronikus számlázó programokba (pl. Számlázz.hu) történő továbbítását.</p>
+        <p><strong>1.2. Kizárólagos B2B használat:</strong> A Szoftver célközönsége és felhasználói kizárólag gazdasági vagy szakmai tevékenységük körében eljáró természetes és jogi személyek, egyéni vállalkozók (a továbbiakban: <strong>Felhasználó</strong>). Fogyasztók (B2C) a szolgáltatást nem vehetik igénybe.</p>
+        <p><strong>1.3.</strong> A Felhasználó a regisztrációval kifejezetten kijelenti, hogy a Szoftvert vállalkozási, gazdasági tevékenysége körében használja, így a fogyasztóvédelemről szóló jogszabályok (pl. 14 napos indokolás nélküli elállási jog) a felek közötti jogviszonyra nem alkalmazandók.</p>
+
+        <h2>2. A Szolgáltatás működése és a Felelősség korlátozása (Felelősségkizárás)</h2>
+        <p><strong>2.1.</strong> A Szoftver mesterséges intelligencia (AI) technológiát használ a feltöltött képek (blokkok, kézi számlák) és szöveges promptok elemzésére, adatkinyerésére. Az AI technológia sajátosságaiból fakadóan a felismert adatok pontatlanok vagy hibásak lehetnek.</p>
+        <p><strong>2.2. Felhasználói ellenőrzési kötelezettség:</strong> A Szoftver automatikusan NEM állít ki és NEM továbbít számlát a hatóságok (NAV) felé emberi beavatkozás nélkül. A kinyert adatokat a Szoftver egy ellenőrző felületen (Split-View) bemutatja. A Felhasználó <strong>kizárólagos és teljes körű felelőssége</strong> az adatok (vevő, tételek, összegek, áfakulcsok) helyességének, valóságnak való megfelelésének és adójogi szabályoknak való megfelelőségének ellenőrzése a "Kiállítás" gomb megnyomása előtt.</p>
+        <p><strong>2.3. Felelősségkizárás:</strong> A Szolgáltató a Szoftvert "ahogy van" (as-is) alapon nyújtja. A Szolgáltató semmilyen körülmények között nem tehető felelőssé a Felhasználó által kiállított számlák tartalmáért, adójogi hibákért, a Nemzeti Adó- és Vámhivatal (NAV) által kiszabott bírságokért, elmaradt haszonért, vagy harmadik fél felé fennálló kötelezettségek megszegéséért.</p>
+        <p><strong>2.4.</strong> A Szoftver külső integrációk (SzAmlázz.hu API) meghívásával operál. A Szolgáltató nem garantálja a külső rendszerek 100%-os rendelkezésre állását.</p>
+
+        <h2>3. Díjazás és Kreditek (Stripe)</h2>
+        <p><strong>3.1.</strong> A Szoftver használata "Pay-as-you-go" (előre fizetett kredit) alapú. A Felhasználó kreditcsomagokat vásárolhat a Stripe biztonságos fizetési rendszerén keresztül. 1 feldolgozott dokumentum vagy szöveges parancs = 1 kredit.</p>
+        <p><strong>3.2.</strong> A megvásárolt kreditek nem járnak le, azonban pénzre nem válthatók vissza. A Szolgáltatás B2B jellege miatt visszatérítésre (Refund) nincs lehetőség, kivéve, ha a Szoftver bizonyíthatóan technikai hiba miatt nem teljesítette a feldolgozást.</p>
+
+        <h2>4. Külső API Kulcsok kezelése</h2>
+        <p><strong>4.1.</strong> A Felhasználó a saját Számlázz.hu API kulcsait adja meg a Szoftverben. Ezen kulcsok használatával a Szoftver a Felhasználó nevében és megbízásából jár el. A kulcsok illetéktelen kezekbe kerülésének elkerülése érdekében a Szolgáltató elvárható biztonsági intézkedéseket tesz, de a jelszavak/kulcsok Felhasználó általi kiszivárgásáért nem felel.</p>
+
+        <h2>5. Szerződés megszűnése</h2>
+        <p><strong>5.1.</strong> A Felhasználó fiókját bármikor törölheti. A törlés a megmaradt kreditek elvesztésével jár.</p>
+        <p><strong>5.2.</strong> A Szolgáltató jogosult a szolgáltatást azonnali hatállyal felfüggeszteni, ha a Felhasználó visszaél a Szoftverrel, jogellenes tevékenységre (pl. adócsalás, fiktív számlázás) használja, vagy túlterheléses (DDoS) támadást kísérel meg.</p>
+      </article>
+    </main>
+  </body>
+</html>
+

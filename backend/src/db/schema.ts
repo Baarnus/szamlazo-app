@@ -13,6 +13,8 @@ export const users = pgTable('users', {
   navTechnicalPassword: text('nav_technical_password'),
   navSignKey: text('nav_sign_key'),
   navExchangeKey: text('nav_exchange_key'),
+  resetToken: text('reset_token'),
+  resetTokenExpiry: timestamp('reset_token_expiry'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -25,9 +27,19 @@ export const invoices = pgTable('invoices', {
   data: jsonb('data').$type<InvoiceData>().notNull(),
   isValid: boolean('is_valid').default(true).notNull(),
   status: text('status').default('processed').notNull(),
+  isDeleted: boolean('is_deleted').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+export const auditLogs = pgTable('audit_logs', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id),
+  action: text('action').notNull(),
+  details: jsonb('details'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type UserRecord = typeof users.$inferSelect;
 export type InvoiceRecord = typeof invoices.$inferSelect;
+export type AuditLogRecord = typeof auditLogs.$inferSelect;

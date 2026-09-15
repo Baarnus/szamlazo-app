@@ -7,7 +7,7 @@ import dotenv from 'dotenv';
 import { z } from 'zod';
 import { desc, eq, and, sql } from 'drizzle-orm';
 import { db, initDatabase } from './db/index.js';
-import { invoices, users } from './db/schema.js';
+import { invoices, users, auditLogs } from './db/schema.js';
 import { authRouter, getAuthUser } from './auth.js';
 import { uploadInvoiceBuffer, getInvoiceImageUrl } from './lib/s3.js';
 import { billingRouter } from './billing.js';
@@ -487,7 +487,7 @@ app.get('/api/invoices', async (c) => {
   try {
     const list = await db.select()
       .from(invoices)
-      .where(eq(invoices.userId, user.id))
+      .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
       .orderBy(desc(invoices.createdAt))
       .limit(50);
 
@@ -508,6 +508,42 @@ app.get('/api/invoices', async (c) => {
     return c.json({ success: true, count: invoicesWithUrls.length, invoices: invoicesWithUrls });
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
+  }
+});
+
+// ==========================================
+// SZÁMLA TÖRLÉSE (SOFT DELETE)
+// ==========================================
+app.delete('/api/invoices/:id', async (c) => {
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) {
+    return c.json({ success: false, error: 'Nincs bejelentkezve.' }, 401);
+  }
+
+  const invoiceId = c.req.param('id');
+  
+  try {
+    const [existing] = await db.select().from(invoices)
+      .where(and(eq(invoices.id, invoiceId), eq(invoices.userId, user.id)));
+      
+    if (!existing) {
+      return c.json({ success: false, error: 'Számla nem található vagy nincs jogosultságod hozzá.' }, 404);
+    }
+
+    await db.update(invoices)
+      .set({ isDeleted: true, updatedAt: new Date() })
+      .where(eq(invoices.id, invoiceId));
+
+    await db.insert(auditLogs).values({
+      userId: user.id,
+      action: 'invoice_soft_delete',
+      details: { invoiceId, originalStatus: existing.status }
+    });
+
+    return c.json({ success: true, message: 'Számla sikeresen (soft) törölve.' });
+  } catch (error) {
+    console.error('Hiba a törlés során:', error);
+    return c.json({ success: false, error: 'Belső szerverhiba' }, 500);
   }
 });
 

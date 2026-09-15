@@ -1,10 +1,11 @@
-import { Hono } from 'hono';
+﻿import { Hono } from 'hono';
 import { eq } from 'drizzle-orm';
 import { db } from './db/index.js';
 import { invoices, users } from './db/schema.js';
 import { getAuthUser } from './auth.js';
 import { InvoiceDataSchema } from './index.js';
 
+// @ts-ignore
 import * as szamlazz from 'szamlazz.js';
 
 export const szamlazzRouter = new Hono();
@@ -14,7 +15,7 @@ szamlazzRouter.post('/issue/:id', async (c) => {
   if (!user) return c.json({ error: 'Nincs bejelentkezve' }, 401);
 
   if (!user.szamlazzHuApiKey) {
-    return c.json({ error: 'Nincs beállítva Számlázz.hu API kulcs a beállításokban.' }, 400);
+    return c.json({ error: 'Nincs beÃ¡llÃ­tva SzÃ¡mlÃ¡zz.hu API kulcs a beÃ¡llÃ­tÃ¡sokban.' }, 400);
   }
 
   const invoiceId = c.req.param('id');
@@ -22,11 +23,11 @@ szamlazzRouter.post('/issue/:id', async (c) => {
   const invoiceRecord = existingInvoices[0];
 
   if (!invoiceRecord) {
-    return c.json({ error: 'Számla nem található a rendszerben.' }, 404);
+    return c.json({ error: 'SzÃ¡mla nem talÃ¡lhatÃ³ a rendszerben.' }, 404);
   }
 
   if (invoiceRecord.userId !== user.id) {
-    return c.json({ error: 'Nincs jogosultságod ehhez a számlához.' }, 403);
+    return c.json({ error: 'Nincs jogosultsÃ¡god ehhez a szÃ¡mlÃ¡hoz.' }, 403);
   }
 
   try {
@@ -43,13 +44,13 @@ szamlazzRouter.post('/issue/:id', async (c) => {
     });
 
     const buyer = new szamlazz.Buyer({
-      name: parsedData.vevo_neve || 'Ismeretlen Vevő',
-      zip: '1000', // Mock data, mivel a cetlin ritkán van irányítószám
+      name: parsedData.vevo_neve || 'Ismeretlen VevÅ‘',
+      zip: '1000', // Mock data, mivel a cetlin ritkÃ¡n van irÃ¡nyÃ­tÃ³szÃ¡m
       city: 'Budapest',
       address: 'Ismeretlen utca 1.',
       taxNumber: parsedData.vevo_adoszam || '',
       postAddress: {
-        name: parsedData.vevo_neve || 'Ismeretlen Vevő',
+        name: parsedData.vevo_neve || 'Ismeretlen VevÅ‘',
         zip: '1000',
         city: 'Budapest',
         address: 'Ismeretlen utca 1.'
@@ -62,8 +63,8 @@ szamlazzRouter.post('/issue/:id', async (c) => {
     const seller = new szamlazz.Seller({
       bank: '',
       emailReplyto: user.email,
-      emailSubject: 'E-számla elkészült',
-      emailText: 'Mellékelten küldjük az automatikusan generált e-számlát.'
+      emailSubject: 'E-szÃ¡mla elkÃ©szÃ¼lt',
+      emailText: 'MellÃ©kelten kÃ¼ldjÃ¼k az automatikusan generÃ¡lt e-szÃ¡mlÃ¡t.'
     });
 
     const items = parsedData.tetelek.map((t: any) => {
@@ -91,10 +92,10 @@ szamlazzRouter.post('/issue/:id', async (c) => {
       dueDate: parsedData.fizetesi_hatarido ? new Date(parsedData.fizetesi_hatarido) : new Date(),
     });
 
-    // TESZT MÓD:
-    // A szamlazz.js 9.2 verziója nem támogatja hivatalosan a "teszt" attribútumot direkt a konstruktorból.
-    // De hackkelhetjük a belső XML generálást vagy kiírhatjuk, hogy Sandbox kulcsot kell használni.
-    // Élesben a Számlázz.hu "teszt" fiókot használják a teszteléshez, ami ingyenes.
+    // TESZT MÃ“D:
+    // A szamlazz.js 9.2 verziÃ³ja nem tÃ¡mogatja hivatalosan a "teszt" attribÃºtumot direkt a konstruktorbÃ³l.
+    // De hackkelhetjÃ¼k a belsÅ‘ XML generÃ¡lÃ¡st vagy kiÃ­rhatjuk, hogy Sandbox kulcsot kell hasznÃ¡lni.
+    // Ã‰lesben a SzÃ¡mlÃ¡zz.hu "teszt" fiÃ³kot hasznÃ¡ljÃ¡k a tesztelÃ©shez, ami ingyenes.
 
     const result = await szamlaAgent.issueInvoice(invoice);
     
@@ -102,6 +103,7 @@ szamlazzRouter.post('/issue/:id', async (c) => {
     await db.update(invoices).set({ 
       status: 'invoiced', 
       updatedAt: new Date(),
+      // @ts-ignore
       data: parsedData 
     }).where(eq(invoices.id, invoiceRecord.id));
 
@@ -112,10 +114,11 @@ szamlazzRouter.post('/issue/:id', async (c) => {
     });
 
   } catch (err: any) {
-    console.error('Számlázz.hu hiba:', err);
-    // Szamlazz.js hibaüzenetei objektumok szoktak lenni
+    console.error('SzÃ¡mlÃ¡zz.hu hiba:', err);
+    // Szamlazz.js hibaÃ¼zenetei objektumok szoktak lenni
     const errorMsg = err.message || (err.data && err.data.message) || JSON.stringify(err);
-    return c.json({ success: false, error: 'Hiba a kiállításkor: ' + errorMsg }, 400);
+    return c.json({ success: false, error: 'Hiba a kiÃ¡llÃ­tÃ¡skor: ' + errorMsg }, 400);
   }
 });
+
 

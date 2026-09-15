@@ -377,46 +377,55 @@ app.post('/api/invoices/parse-text', async (c) => {
         body: JSON.stringify({
           systemInstruction: {
             parts: [{
-              text: "Te egy szigorú számlázási asszisztens vagy. A feladatod KIZÁRÓLAG számla adatok strukturált kinyerése. Ha a felhasználó bármi mást (pl. verset, kódolást, általános beszélgetést) kér, tagadd meg és írj egy hibaüzenetet a 'create_invoice_data' hívás helyett."
+              text: "Te egy szigorú számlázási asszisztens vagy. A feladatod KIZÁRÓLAG számla adatok strukturált kinyerése. Ha a felhasználó több számlát is kér, mindet külön objektumként add vissza az array-ben. Ha a felhasználó bármi mást (pl. verset, kódolást) kér, tagadd meg és írj egy hibaüzenetet."
             }]
           },
           contents: [{ parts: [{ text: textPrompt }] }],
           tools: [{
             functionDeclarations: [{
-              name: "create_invoice_data",
-              description: "Kinyeri és előkészíti a számla kibocsátásához szükséges adatokat a felhasználó szövegéből.",
+              name: "create_invoices_data",
+              description: "Kinyeri és előkészíti a számla vagy SZÁMLÁK kibocsátásához szükséges adatokat a felhasználó szövegéből.",
               parameters: {
                 type: "OBJECT",
                 properties: {
-                  kiallito_neve: { type: "STRING" },
-                  kiallito_adoszam: { type: "STRING" },
-                  kiallito_orszag: { type: "STRING" },
-                  vevo_neve: { type: "STRING" },
-                  vevo_adoszam: { type: "STRING" },
-                  szamlaszam: { type: "STRING" },
-                  kelt_datum: { type: "STRING" },
-                  teljesites_datum: { type: "STRING" },
-                  fizetesi_hatarido: { type: "STRING" },
-                  penznem: { type: "STRING" },
-                  tetelek: {
+                  invoices: {
                     type: "ARRAY",
                     items: {
                       type: "OBJECT",
                       properties: {
-                        megnevezes: { type: "STRING" },
-                        mennyiseg: { type: "NUMBER" },
-                        egysegar: { type: "NUMBER" },
-                        afa_szazalek: { type: "NUMBER" },
-                        netto_ar: { type: "NUMBER" },
-                        afa_ertek: { type: "NUMBER" },
-                        brutto_ar: { type: "NUMBER" }
+                        kiallito_neve: { type: "STRING" },
+                        kiallito_adoszam: { type: "STRING" },
+                        kiallito_orszag: { type: "STRING" },
+                        vevo_neve: { type: "STRING" },
+                        vevo_adoszam: { type: "STRING" },
+                        szamlaszam: { type: "STRING" },
+                        kelt_datum: { type: "STRING" },
+                        teljesites_datum: { type: "STRING" },
+                        fizetesi_hatarido: { type: "STRING" },
+                        penznem: { type: "STRING" },
+                        tetelek: {
+                          type: "ARRAY",
+                          items: {
+                            type: "OBJECT",
+                            properties: {
+                              megnevezes: { type: "STRING" },
+                              mennyiseg: { type: "NUMBER" },
+                              egysegar: { type: "NUMBER" },
+                              afa_szazalek: { type: "NUMBER" },
+                              netto_ar: { type: "NUMBER" },
+                              afa_ertek: { type: "NUMBER" },
+                              brutto_ar: { type: "NUMBER" }
+                            }
+                          }
+                        },
+                        vegosszeg_netto: { type: "NUMBER" },
+                        vegosszeg_afa: { type: "NUMBER" },
+                        vegosszeg_brutto: { type: "NUMBER" }
                       }
                     }
-                  },
-                  vegosszeg_netto: { type: "NUMBER" },
-                  vegosszeg_afa: { type: "NUMBER" },
-                  vegosszeg_brutto: { type: "NUMBER" }
-                }
+                  }
+                },
+                required: ["invoices"]
               }
             }]
           }],
@@ -434,42 +443,44 @@ app.post('/api/invoices/parse-text', async (c) => {
     
     const resultJson: any = await geminiRes.json();
     
-    // Ellenőrizzük, hogy meghívta-e a funkciót
     const call = resultJson.candidates?.[0]?.content?.parts?.[0]?.functionCall;
-    if (!call || call.name !== 'create_invoice_data') {
+    if (!call || call.name !== 'create_invoices_data') {
        throw new Error('Az AI megtagadta a kérést. Kérlek, csak számlázással kapcsolatos utasításokat adj meg!');
     }
 
-    const parsedJson = call.args;
-    const zodResult = InvoiceDataSchema.safeParse(parsedJson);
+    const invoicesArray = call.args.invoices || [];
+    const resultsToReturn = [];
+    
+    let idx = 0;
+    for (const invData of invoicesArray) {
+      const zodResult = InvoiceDataSchema.safeParse(invData);
+      const isValid = zodResult.success;
+      const finalData = (isValid ? zodResult.data : invData) as InvoiceData;
+      const errorMessages = !isValid ? zodResult.error.issues.map((issue) => issue.message) : [];
 
-    const isValid = zodResult.success;
-    const finalData = (isValid ? zodResult.data : parsedJson) as InvoiceData;
-    const errorMessages = !isValid ? zodResult.error.issues.map((issue) => issue.message) : [];
+      const inserted = await db.insert(invoices).values({
+        userId: user.id,
+        source: 'Szöveges prompt: ' + textPrompt,
+        imageUrl: null,
+        data: finalData,
+        isValid: isValid,
+        status: isValid ? 'processed' : 'needs_review',
+      }).returning();
 
-    // Mentés DB-be
-    const inserted = await db.insert(invoices).values({
-      userId: user.id,
-      source: 'Szöveges prompt: ' + textPrompt,
-      imageUrl: null,
-      data: finalData,
-      isValid: isValid,
-      status: isValid ? 'processed' : 'needs_review',
-    }).returning();
-
-    const dbId = inserted[0]?.id;
-
-    return c.json({
-      success: true,
-      result: {
-        index: 0,
-        dbId,
+      resultsToReturn.push({
+        index: idx++,
+        dbId: inserted[0]?.id,
         source: 'Szöveges Asszisztens',
         success: true,
         isValid,
         errors: errorMessages,
         data: finalData
-      }
+      });
+    }
+
+    return c.json({
+      success: true,
+      results: resultsToReturn
     });
 
   } catch (err: any) {

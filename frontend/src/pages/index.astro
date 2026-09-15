@@ -1,4 +1,4 @@
----
+﻿---
 import "../styles/global.css";
 import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 ---
@@ -834,6 +834,22 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       </div>
     </dialog>
 
+    <!-- DELETE INVOICE CONFIRM MODAL -->
+    <dialog id="deleteInvoiceConfirmModal" class="modal modal-bottom sm:modal-middle">
+      <div class="modal-box bg-base-100">
+        <h3 class="font-bold text-lg text-error">Számla törlése</h3>
+        <p class="py-4 text-sm text-base-content/80">
+          Biztosan törölni szeretnéd ezt a számlát? A módosítás <b>nem visszavonható</b>!
+        </p>
+        <div class="modal-action">
+          <form method="dialog">
+            <button class="btn btn-sm btn-ghost">Mégsem</button>
+          </form>
+          <button type="button" id="confirmDeleteInvoiceBtn" class="btn btn-sm btn-error">Igen, törlöm</button>
+        </div>
+      </div>
+    </dialog>
+
     <!-- SPLIT VIEW & SZERKESZTŐ MODAL -->
     <dialog id="editModal" class="modal modal-bottom sm:modal-middle">
       <div
@@ -1129,6 +1145,40 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       }
 
       // Auth Elemek
+      let invoiceToDeleteDbId: string | null = null;
+      let invoiceToDeleteIndex: number | null = null;
+      let invoiceToDeleteBtn: HTMLButtonElement | null = null;
+      const deleteInvoiceConfirmModal = document.getElementById("deleteInvoiceConfirmModal") as HTMLDialogElement;
+      const confirmDeleteInvoiceBtn = document.getElementById("confirmDeleteInvoiceBtn") as HTMLButtonElement;
+
+      confirmDeleteInvoiceBtn?.addEventListener("click", async () => {
+        if (!invoiceToDeleteDbId || invoiceToDeleteIndex === null || !invoiceToDeleteBtn) return;
+        const btn = confirmDeleteInvoiceBtn;
+        btn.disabled = true;
+        const originalHtml = btn.innerHTML;
+        btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
+        try {
+          const res = await fetch(`${API_BASE}/api/invoices/${invoiceToDeleteDbId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${authToken}` }
+          });
+          const data = await res.json();
+          if (data.success) {
+            showToast("Számla sikeresen törölve.", "success");
+            lastProcessedResults.splice(invoiceToDeleteIndex, 1);
+            renderResultsCards();
+            deleteInvoiceConfirmModal.close();
+          } else {
+            showToast(data.error || "Hiba történt a törlés során.", "error");
+          }
+        } catch (err) {
+          showToast("Hálózati hiba a törléskor.", "error");
+        } finally {
+          btn.disabled = false;
+          btn.innerHTML = originalHtml;
+        }
+      });
+
       const authModal = document.getElementById(
         "authModal",
       ) as HTMLDialogElement;
@@ -1644,29 +1694,6 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         }
       });
 
-      document.getElementById("deleteAccountBtn")?.addEventListener("click", async (e) => {
-        if (confirm("BIZTOS VAGY BENNE? A fiókod, minden beállításod és feltöltött számlád VÉGLEGESEN törlődik. Ezt nem lehet visszavonni!")) {
-          const btn = e.currentTarget as HTMLButtonElement;
-          btn.disabled = true;
-          btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span> Törlés folyamatban...';
-          
-          try {
-            const res = await fetch(`${API_BASE}/api/settings/account`, {
-              method: 'DELETE',
-              headers: { Authorization: `Bearer ${authToken}` }
-            });
-            const data = await res.json();
-            if (res.ok && data.success) {
-              settingsModal.close();
-              document.getElementById("logoutBtn")?.click(); // Automatikus kijelentkeztetés
-              showToast("Fiókodat sikeresen töröltük a rendszerből (GDPR).", "success");
-            } else {
-              showToast(data.error || "Hiba a törlés során.", "error");
-              btn.disabled = false;
-              btn.innerHTML = 'Fiók végleges törlése (GDPR)';
-            }
-          } catch(err) {
-            showToast("Hálózati hiba a fiók törlésekor.", "error");
       const deleteAccountConfirmModal = document.getElementById("deleteAccountConfirmModal") as HTMLDialogElement;
       
       document.getElementById("deleteAccountBtn")?.addEventListener("click", () => {
@@ -1692,7 +1719,6 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
           } else {
             showToast(data.error || "Hiba a törlés során.", "error");
             btn.disabled = false;
-            btn.innerHTML = 'Fiók végleges törlése (GDPR)';
             btn.innerHTML = 'Igen, törlöm a fiókom';
           }
         } catch(err) {
@@ -2517,31 +2543,10 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
               const dbId = btn.getAttribute("data-id");
               if (!dbId) return;
 
-              if (confirm("Biztosan törölni szeretnéd ezt a számlát? (A módosítás nem visszavonható)")) {
-                btn.disabled = true;
-                const originalHtml = btn.innerHTML;
-                btn.innerHTML = '<span class="loading loading-spinner loading-xs"></span>';
-                try {
-                  const res = await fetch(`${API_BASE}/api/invoices/${dbId}`, {
-                    method: 'DELETE',
-                    headers: { Authorization: `Bearer ${authToken}` }
-                  });
-                  const data = await res.json();
-                  if (data.success) {
-                    showToast("Számla sikeresen törölve.", "success");
-                    // Eltávolítjuk a UI-ról
-                    lastProcessedResults.splice(index, 1);
-                    renderResultsCards();
-                  } else {
-                    showToast(data.error || "Hiba történt a törlés során.", "error");
-                  }
-                } catch (err) {
-                  showToast("Hálózati hiba a törléskor.", "error");
-                } finally {
-                  btn.disabled = false;
-                  btn.innerHTML = originalHtml;
-                }
-              }
+              invoiceToDeleteDbId = dbId;
+              invoiceToDeleteIndex = index;
+              invoiceToDeleteBtn = btn;
+              deleteInvoiceConfirmModal.showModal();
             });
         }
 
@@ -2668,9 +2673,12 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
               throw new Error(data.error || "Hiba a feldolgozás során");
             }
 
-            // Ha kész van, kártya létrehozása
-            lastProcessedResults = [data.result, ...lastProcessedResults];
-            inputItemsCache = [{ type: "url", data: "" }, ...inputItemsCache]; // mock cache to keep indexes matching
+            // Ha kész van, kártya létrehozása (több számla is lehet egy promptból!)
+            const newResults = data.results || (data.result ? [data.result] : []);
+            lastProcessedResults = [...newResults, ...lastProcessedResults];
+            
+            const newMocks = newResults.map(() => ({ type: "url", data: "" }));
+            inputItemsCache = [...newMocks, ...inputItemsCache]; // mock cache to keep indexes matching
             
             checkCurrentSession(); // refresh credits
             renderResultsCards();
@@ -2910,3 +2918,5 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
     </script>
   </body>
 </html>
+
+

@@ -1057,32 +1057,31 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
           </div>
         </div>
 
-        <div
-          class="modal-action border-t border-base-200 pt-3 flex justify-between items-center"
-        >
-          <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost"
-            >Mégse</button
-          >
-          <div class="flex items-center gap-4">
-            <label class="label cursor-pointer justify-start gap-2 max-w-xs text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
-              <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-xs checkbox-secondary" />
-              <span class="label-text text-[10px] leading-tight text-base-content/70">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
-            </label>
-            <button
-              type="button"
-              id="issueSzamlazzHuBtn"
-              class="btn btn-sm btn-secondary shrink-0"
-              disabled
-            >
-              🧾 E-számla Kiállítása
-            </button>
-            <button
-              type="button"
-              id="saveChangesBtn"
-              class="btn btn-sm btn-primary"
-            >
-              Változtatások Mentése
-            </button>
+        <div class="modal-action border-t border-base-200 pt-3 flex flex-col gap-3">
+          <label class="label cursor-pointer justify-start gap-2 text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
+            <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-xs checkbox-secondary shrink-0" />
+            <span class="label-text text-[10px] leading-tight text-base-content/70">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
+          </label>
+          
+          <div class="flex flex-col sm:flex-row justify-between items-center gap-3 w-full">
+            <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost w-full sm:w-auto">Mégse</button>
+            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <button
+                type="button"
+                id="issueSzamlazzHuBtn"
+                class="btn btn-sm btn-secondary shrink-0 w-full sm:w-auto"
+                disabled
+              >
+                🧾 E-számla Kiállítása
+              </button>
+              <button
+                type="button"
+                id="saveChangesBtn"
+                class="btn btn-sm btn-primary w-full sm:w-auto"
+              >
+                Mentés
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -1521,7 +1520,14 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
             }),
           });
 
-          const data = await res.json();
+          let data;
+          try {
+            const textResponse = await res.text();
+            data = JSON.parse(textResponse);
+          } catch (e) {
+            throw new Error("A szerver nem megfelelő formátumban válaszolt (valószínűleg nem fut a backend, vagy rossz URL-re mutat).");
+          }
+
           if (!res.ok || !data.success) {
             throw new Error(data.error || "Hiba történt a hitelesítéskor.");
           }

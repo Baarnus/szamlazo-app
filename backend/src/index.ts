@@ -1,4 +1,4 @@
-﻿// backend/src/index.ts
+// backend/src/index.ts
 import { serve } from '@hono/node-server';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -558,9 +558,9 @@ app.delete('/api/invoices/:id', async (c) => {
   }
 });
 
-// ==========================================
+// ===========================================
 // KÖNYVELŐBARÁT CSV EXPORT VÉGPONT
-// ==========================================
+// ===========================================
 app.get('/api/invoices/export/csv', async (c) => {
   const user = await getAuthUser(c.req.header('Authorization'));
   if (!user) {
@@ -570,7 +570,7 @@ app.get('/api/invoices/export/csv', async (c) => {
   try {
     const list = await db.select()
       .from(invoices)
-      .where(eq(invoices.userId, user.id))
+      .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
       .orderBy(desc(invoices.createdAt));
 
     const formatNumberForExcel = (num: number | undefined | null): string => {
@@ -580,7 +580,7 @@ app.get('/api/invoices/export/csv', async (c) => {
 
     const cleanField = (val: string | undefined | null): string => {
       if (!val) return '""';
-      return `"${String(val).replace(/"/g, '""')}"`;
+      return `\"${String(val).replace(/"/g, '""')}\"`;
     };
 
     const headers = [
@@ -609,89 +609,68 @@ app.get('/api/invoices/export/csv', async (c) => {
     ];
 
     const rows: string[] = [];
+    rows.push(headers.join(';'));
 
     for (const inv of list) {
       const d = inv.data as InvoiceData;
       if (!d) continue;
 
-      const currency = d.penznem || 'HUF';
-      const statusLabel = inv.isValid ? 'Érvényes' : 'Összegzési eltérés';
-      const createdAtFormatted = inv.createdAt ? new Date(inv.createdAt).toISOString().slice(0, 10) : '';
-
-      const baseCols = [
+      const baseInfo = [
         cleanField(d.szamlaszam),
         cleanField(d.kiallito_neve),
         cleanField(d.kiallito_adoszam),
-        cleanField(d.kiallito_orszag || 'HU'),
+        cleanField(d.kiallito_orszag),
         cleanField(d.vevo_neve),
         cleanField(d.vevo_adoszam),
         cleanField(d.kelt_datum),
         cleanField(d.teljesites_datum),
         cleanField(d.fizetesi_hatarido),
-        cleanField(currency)
+        cleanField(d.penznem)
       ];
 
-      const totalsCols = [
+      const totalsInfo = [
         formatNumberForExcel(d.vegosszeg_netto),
         formatNumberForExcel(d.vegosszeg_afa),
         formatNumberForExcel(d.vegosszeg_brutto),
-        cleanField(statusLabel),
-        cleanField(createdAtFormatted)
+        cleanField(inv.status),
+        cleanField(inv.createdAt.toISOString())
       ];
 
-      if (d.tetelek && d.tetelek.length > 0) {
-        for (const item of d.tetelek) {
-          const itemNetto = item.netto_ar !== undefined && item.netto_ar !== null
-            ? item.netto_ar
-            : (Number(item.mennyiseg || 1) * Number(item.egysegar || 0));
-
-          const itemAfa = item.afa_ertek !== undefined && item.afa_ertek !== null
-            ? item.afa_ertek
-            : (Number(item.brutto_ar || 0) - Number(itemNetto || 0));
-
-          const itemCols = [
-            cleanField(item.megnevezes),
-            formatNumberForExcel(item.mennyiseg || 1),
-            formatNumberForExcel(item.egysegar || 0),
-            formatNumberForExcel(item.afa_szazalek !== undefined ? item.afa_szazalek : 27),
-            formatNumberForExcel(itemNetto),
-            formatNumberForExcel(itemAfa),
-            formatNumberForExcel(item.brutto_ar || 0)
+      if (d.tetelek && Array.isArray(d.tetelek) && d.tetelek.length > 0) {
+        for (const t of d.tetelek) {
+          const itemInfo = [
+            cleanField(t.megnevezes),
+            formatNumberForExcel(t.mennyiseg),
+            formatNumberForExcel(t.egysegar),
+            formatNumberForExcel(t.afa_szazalek),
+            formatNumberForExcel(t.netto_ar),
+            formatNumberForExcel(t.afa_ertek),
+            formatNumberForExcel(t.brutto_ar)
           ];
-
-          rows.push([...baseCols, ...itemCols, ...totalsCols].join(';'));
+          rows.push([...baseInfo, ...itemInfo, ...totalsInfo].join(';'));
         }
       } else {
-        const fallbackItemCols = [
-          cleanField('Számla végösszeg'),
-          '1',
-          formatNumberForExcel(d.vegosszeg_netto),
-          formatNumberForExcel(27),
-          formatNumberForExcel(d.vegosszeg_netto),
-          formatNumberForExcel(d.vegosszeg_afa),
-          formatNumberForExcel(d.vegosszeg_brutto)
-        ];
-
-        rows.push([...baseCols, ...fallbackItemCols, ...totalsCols].join(';'));
+        const itemInfo = ['""', '""', '""', '""', '""', '""', '""'];
+        rows.push([...baseInfo, ...itemInfo, ...totalsInfo].join(';'));
       }
     }
 
-    // UTF-8 BOM (\uFEFF) az Excel ékezetkompatibilitáshoz
-    const csvContent = '\uFEFF' + [headers.join(';'), ...rows].join('\r\n');
-    const today = new Date().toISOString().slice(0, 10);
-
+    const csvContent = '\uFEFF' + rows.join('\n');
     return new Response(csvContent, {
       headers: {
         'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': `attachment; filename="szamlak_export_${today}.csv"`,
-      },
+        'Content-Disposition': 'attachment; filename="szamlak_osszesito.csv"'
+      }
     });
+
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
   }
 });
 
+// ==========================================
 // Számla javítása a Split View-ból
+// ==========================================
 app.patch('/api/invoices/:id', async (c) => {
   const user = await getAuthUser(c.req.header('Authorization'));
   if (!user) {
@@ -700,7 +679,7 @@ app.patch('/api/invoices/:id', async (c) => {
 
   try {
     const id = c.req.param('id');
-    const body = await c.req.json<{ data: InvoiceData; isValid?: boolean }>();
+    const body = await c.req.json<{ data: any; isValid?: boolean }>();
 
     if (!body.data) {
       return c.json({ success: false, error: 'Hiányzó számlaadatok.' }, 400);
@@ -716,6 +695,81 @@ app.patch('/api/invoices/:id', async (c) => {
       .where(and(eq(invoices.id, id), eq(invoices.userId, user.id)));
 
     return c.json({ success: true, message: 'Számla sikeresen frissítve az adatbázisban.' });
+  } catch (err: any) {
+    return c.json({ success: false, error: err.message }, 500);
+  }
+});
+
+// ==========================================
+// RLB-60 KÖNYVELőPROGRAM EXPORT VÉGPONT
+// =========================================
+app.get('/api/invoices/export/rlb', async (c) => {
+  const user = await getAuthUser(c.req.header('Authorization'));
+  if (!user) {
+    return c.json({ success: false, error: 'Nincs bejelentkezve.' }, 401);
+  }
+
+  try {
+    const list = await db.select()
+      .from(invoices)
+      .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
+      .orderBy(desc(invoices.createdAt));
+
+    const cleanField = (val: any) => {
+      if (!val) return '';
+      return String(val).replace(/;/g, ',').replace(/"/g, '').trim();
+    };
+
+    const formatDateRLB = (dateStr: any) => {
+      if (!dateStr) return '';
+      const clean = String(dateStr).replace(/-/g, '.').replace(/\//g, '.');
+      return clean.endsWith('.') ? clean : clean + '.';
+    };
+
+    const headers = [
+      'Számlaszám',
+      'Kelt',
+      'Teljesítés',
+      'Fizetési határidő',
+      'Szállító neve',
+      'Szállító adószáma',
+      'Nettó',
+      'ÁFA',
+      'Bruttó',
+      'Devizanem'
+    ];
+
+    const rows: string[] = [];
+    rows.push(headers.join(';'));
+
+    for (const inv of list) {
+      const d = inv.data as InvoiceData;
+      if (!d) continue;
+
+      const row = [
+        cleanField(d.szamlaszam),
+        formatDateRLB(d.kelt_datum),
+        formatDateRLB(d.teljesites_datum),
+        formatDateRLB(d.fizetesi_hatarido),
+        cleanField(d.kiallito_neve),
+        cleanField(d.kiallito_adoszam),
+        Math.round(Number(d.vegosszeg_netto) || 0).toString(),
+        Math.round(Number(d.vegosszeg_afa) || 0).toString(),
+        Math.round(Number(d.vegosszeg_brutto) || 0).toString(),
+        cleanField(d.penznem || 'HUF')
+      ];
+
+      rows.push(row.join(';'));
+    }
+
+    const csvContent = '\uFEFF' + rows.join('\n');
+    return new Response(csvContent, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': 'attachment; filename="rlb60_export.csv"'
+      }
+    });
+
   } catch (err: any) {
     return c.json({ success: false, error: err.message }, 500);
   }

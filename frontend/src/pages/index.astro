@@ -1,4 +1,4 @@
-﻿---
+---
 import "../styles/global.css";
 import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 ---
@@ -551,27 +551,28 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
               value="0"
               max="100"></progress>
           </div>
-          <button
-            id="exportCsvBtn"
-            type="button"
-            class="btn btn-sm btn-neutral gap-2 hidden"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div class="flex gap-2">
+            <button
+              id="exportCsvBtn"
+              type="button"
+              class="btn btn-sm btn-neutral gap-2 hidden"
             >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
-              ></path>
-            </svg>
-            CSV Exportálása
-          </button>
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+              </svg>
+              CSV Exportálása
+            </button>
+            <button
+              id="exportRlbBtn"
+              type="button"
+              class="btn btn-sm btn-accent gap-2 hidden"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+              </svg>
+              RLB-60 Könyvelő Export
+            </button>
+          </div>
         </div>
 
         <!-- Élő Feldolgozási Sorrend Napló Panel -->
@@ -1565,7 +1566,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
         resultsWrapper.innerHTML = "";
         lastProcessedResults = [];
-        exportCsvBtn.classList.add("hidden");
+        exportCsvBtn.classList.add("hidden"); exportRlbBtn.classList.add("hidden");
         showToast("Sikeresen kijelentkeztél.", "info");
       });
 
@@ -1857,7 +1858,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
             renderResultsCards();
             if (lastProcessedResults.length > 0) {
-              exportCsvBtn.classList.remove("hidden");
+              exportCsvBtn.classList.remove("hidden"); exportRlbBtn.classList.remove("hidden");
             }
           }
         } catch (err) {
@@ -2608,6 +2609,53 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
       exportCsvBtn.addEventListener("click", triggerBackendCsvDownload);
 
+// ==========================================
+      // CSV EXPORT
+      // ==========================================
+
+      async function triggerBackendRlbDownload() {
+        if (!authToken) {
+          setAuthModalMode("login");
+          authModal.showModal();
+          return;
+        }
+
+        exportRlbBtn.disabled = true;
+        const originalContent = exportRlbBtn.innerHTML;
+        exportRlbBtn.innerHTML =
+          '<span class="loading loading-spinner loading-xs"></span> Letöltés...';
+
+        try {
+          const res = await fetch(`${API_BASE}/api/invoices/export/rlb`, {
+            headers: {
+              Authorization: `Bearer ${authToken}`,
+            },
+          });
+
+          if (!res.ok) {
+            const errData = await res.json().catch(() => ({}));
+            throw new Error(errData.error || "A CSV exportálása sikertelen.");
+          }
+
+          const blob = await res.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `rlb60_export_${new Date().toISOString().slice(0, 10)}.rlb`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+          window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+          showToast(`Hiba a letöltés során: ${err.message}`, "error");
+        } finally {
+          exportRlbBtn.disabled = false;
+          exportRlbBtn.innerHTML = originalContent;
+        }
+      }
+
+      exportRlbBtn.addEventListener("click", triggerBackendRlbDownload);
+
       // ==========================================
       // FELDOLGOZÁS INDÍTÁSA (SSE STREAMING)
       // ==========================================
@@ -2685,7 +2733,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
             renderResultsCards();
             showToast("Sikeres szöveg-értelmezés!", "success");
             textPromptInput.value = "";
-            exportCsvBtn.classList.remove("hidden");
+            exportCsvBtn.classList.remove("hidden"); exportRlbBtn.classList.remove("hidden");
 
           } catch (err: any) {
             showToast(err.message, "error");
@@ -2713,7 +2761,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         progressBar.value = 0;
         progressBar.max = items.length;
         progressPercent.textContent = "0%";
-        exportCsvBtn.classList.add("hidden");
+        exportCsvBtn.classList.add("hidden"); exportRlbBtn.classList.add("hidden");
 
         try {
           const response = await fetch(`${API_BASE}/api/parse-batch-stream`, {
@@ -2806,7 +2854,7 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
                 }
                 progressBar.classList.add("hidden");
                 progressPercent.textContent = "";
-                exportCsvBtn.classList.remove("hidden");
+                exportCsvBtn.classList.remove("hidden"); exportRlbBtn.classList.remove("hidden");
               }
             }
           }

@@ -1,14 +1,36 @@
 // backend/src/routes/export.ts
 // Könyvelőprogram export végpontok: CSV és RLB-60 formátum.
 import { Hono } from 'hono';
-import { desc, eq, and } from 'drizzle-orm';
+import { desc, eq, and, sql, type SQL } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { invoices } from '../db/schema.js';
 import { getAuthUser } from '../auth.js';
 import { formatNumberForExcel, cleanFieldCSV, cleanFieldRLB, formatDateRLB } from '../services/export-formatter.js';
-import type { InvoiceData } from '../../../shared/types.js';
+import type { InvoiceData } from '@szamlazo/shared';
 
 export const exportRouter = new Hono();
+
+/**
+ * SQL szintű szűrés összeállítása az invoices táblára a JSONB adatok és createdAt alapján.
+ * Ezzel elkerülhető, hogy több tízezer számla feleslegesen a Node.js memóriába töltődjön.
+ */
+function buildExportDateConditions(userId: string, fromDate?: string, toDate?: string): SQL[] {
+  const conditions: SQL[] = [
+    eq(invoices.userId, userId),
+    eq(invoices.isDeleted, false)
+  ];
+
+  const effectiveDateSql = sql`COALESCE(NULLIF(${invoices.data}->>'kelt_datum', ''), NULLIF(${invoices.data}->>'teljesites_datum', ''), TO_CHAR(${invoices.createdAt}, 'YYYY-MM-DD'))`;
+
+  if (fromDate) {
+    conditions.push(sql`${effectiveDateSql} >= ${fromDate}`);
+  }
+  if (toDate) {
+    conditions.push(sql`${effectiveDateSql} <= ${toDate}`);
+  }
+
+  return conditions;
+}
 
 // ==========================================
 // KÖNYVELŐBARÁT CSV EXPORT
@@ -23,9 +45,11 @@ exportRouter.get('/csv', async (c) => {
     const fromDate = c.req.query('from'); // pl. 2026-01-01
     const toDate = c.req.query('to');     // pl. 2026-01-31
 
+    const conditions = buildExportDateConditions(user.id, fromDate, toDate);
+
     let list = await db.select()
       .from(invoices)
-      .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
+      .where(and(...conditions))
       .orderBy(desc(invoices.createdAt));
 
     if (fromDate || toDate) {
@@ -136,9 +160,11 @@ exportRouter.get('/rlb', async (c) => {
     const fromDate = c.req.query('from');
     const toDate = c.req.query('to');
 
+    const conditions = buildExportDateConditions(user.id, fromDate, toDate);
+
     let list = await db.select()
       .from(invoices)
-      .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
+      .where(and(...conditions))
       .orderBy(desc(invoices.createdAt));
 
     if (fromDate || toDate) {

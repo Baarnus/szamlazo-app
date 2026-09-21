@@ -44,6 +44,8 @@ export async function initDatabase() {
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_technical_password TEXT;`;
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_sign_key TEXT;`;
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_exchange_key TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_name TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS company_tax_number TEXT;`;
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT;`;
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP;`;
 
@@ -89,7 +91,15 @@ export async function initDatabase() {
       );
     `;
 
-    console.log('✅ [PostgreSQL] Összes tábla ellenőrizve / inicializálva (users, invoices, audit_logs, payments).');
+    // 5. Indexek létrehozása a lekérdezések gyorsításához
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_invoices_user_active ON invoices (user_id, is_deleted, created_at DESC);
+    `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_payments_user ON payments (user_id);
+    `;
+
+    console.log('✅ [PostgreSQL] Összes tábla és index ellenőrizve / inicializálva (users, invoices, audit_logs, payments).');
   } catch (err: any) {
     console.error('❌ [PostgreSQL] Adatbázis inicializálási hiba:', err.message);
   }

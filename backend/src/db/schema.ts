@@ -1,6 +1,6 @@
 // backend/src/db/schema.ts
-import { pgTable, text, timestamp, boolean, jsonb, integer } from 'drizzle-orm/pg-core';
-import type { InvoiceData } from '../../../shared/types.js';
+import { pgTable, text, timestamp, boolean, jsonb, integer, index } from 'drizzle-orm/pg-core';
+import type { InvoiceData } from '@szamlazo/shared';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -13,6 +13,8 @@ export const users = pgTable('users', {
   navTechnicalPassword: text('nav_technical_password'),
   navSignKey: text('nav_sign_key'),
   navExchangeKey: text('nav_exchange_key'),
+  companyName: text('company_name'),
+  companyTaxNumber: text('company_tax_number'),
   resetToken: text('reset_token'),
   resetTokenExpiry: timestamp('reset_token_expiry'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -30,7 +32,9 @@ export const invoices = pgTable('invoices', {
   isDeleted: boolean('is_deleted').default(false).notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_invoices_user_active').on(table.userId, table.isDeleted, table.createdAt)
+]);
 
 export const auditLogs = pgTable('audit_logs', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -47,7 +51,9 @@ export const payments = pgTable('payments', {
   creditsAdded: integer('credits_added').notNull(),
   packageId: text('package_id'),
   createdAt: timestamp('created_at').defaultNow().notNull(),
-});
+}, (table) => [
+  index('idx_payments_user').on(table.userId)
+]);
 
 export type UserRecord = typeof users.$inferSelect;
 export type InvoiceRecord = typeof invoices.$inferSelect;

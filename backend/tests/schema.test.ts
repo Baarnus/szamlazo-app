@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { InvoiceDataSchema } from '../src/schemas/invoice.js';
+import { InvoiceDataSchema } from '@szamlazo/shared';
 
 describe('InvoiceDataSchema Validáció', () => {
   it('El kell fogadnia a helyes és hiánytalan számlaadatokat', () => {

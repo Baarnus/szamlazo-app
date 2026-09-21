@@ -5,7 +5,7 @@ import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { invoices } from '../db/schema.js';
 import { getAuthUser } from '../auth.js';
-import type { InvoiceData } from '../../../shared/types.js';
+import type { InvoiceData } from '@szamlazo/shared';
 
 export const partnersRouter = new Hono();
 
@@ -35,27 +35,67 @@ partnersRouter.get('/suggest', async (c) => {
       .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
       .limit(200); // Elegendő minta, nem kell az összes rekord
 
-    // Egyedi partnernevek összegyűjtése mindkét mezőből
-    const nameSet = new Set<string>();
+    // Egyedi partner adatok összegyűjtése és egyesítése a korábbi számlákból
+    interface PartnerRecord {
+      name: string;
+      taxNumber: string | null;
+      country: string | null;
+      zip: string | null;
+      city: string | null;
+      address: string | null;
+      email: string | null;
+    }
+
+    const partnerMap = new Map<string, PartnerRecord>();
+
     for (const row of list) {
       const data = row.data as InvoiceData;
-      if (data?.vevo_neve && typeof data.vevo_neve === 'string') {
-        nameSet.add(data.vevo_neve.trim());
+      if (!data) continue;
+
+      if (data.vevo_neve && typeof data.vevo_neve === 'string') {
+        const name = data.vevo_neve.trim();
+        if (name) {
+          const key = name.toLowerCase();
+          const existing = partnerMap.get(key);
+          partnerMap.set(key, {
+            name: existing?.name || name,
+            taxNumber: data.vevo_adoszam ? String(data.vevo_adoszam).trim() : (existing?.taxNumber || null),
+            country: data.vevo_orszag ? String(data.vevo_orszag).trim() : (existing?.country || 'Magyarország'),
+            zip: data.vevo_iranyitoszam ? String(data.vevo_iranyitoszam).trim() : (existing?.zip || null),
+            city: data.vevo_telepules ? String(data.vevo_telepules).trim() : (existing?.city || null),
+            address: data.vevo_cim ? String(data.vevo_cim).trim() : (existing?.address || null),
+            email: data.vevo_email ? String(data.vevo_email).trim() : (existing?.email || null),
+          });
+        }
       }
-      if (data?.kiallito_neve && typeof data.kiallito_neve === 'string') {
-        nameSet.add(data.kiallito_neve.trim());
+
+      if (data.kiallito_neve && typeof data.kiallito_neve === 'string') {
+        const name = data.kiallito_neve.trim();
+        if (name) {
+          const key = name.toLowerCase();
+          const existing = partnerMap.get(key);
+          partnerMap.set(key, {
+            name: existing?.name || name,
+            taxNumber: data.kiallito_adoszam ? String(data.kiallito_adoszam).trim() : (existing?.taxNumber || null),
+            country: data.kiallito_orszag ? String(data.kiallito_orszag).trim() : (existing?.country || 'Magyarország'),
+            zip: existing?.zip || null,
+            city: existing?.city || null,
+            address: existing?.address || null,
+            email: existing?.email || null,
+          });
+        }
       }
     }
 
     // Szűrés a keresési szöveg alapján, majd rendezés és limitálás
-    const matches = [...nameSet]
-      .filter((name) => name.toLowerCase().includes(q))
+    const matches = [...partnerMap.values()]
+      .filter((p) => p.name.toLowerCase().includes(q))
       .sort((a, b) => {
         // Előre kerülnek azok, amelyek a keresési szóval kezdődnek
-        const aStarts = a.toLowerCase().startsWith(q) ? 0 : 1;
-        const bStarts = b.toLowerCase().startsWith(q) ? 0 : 1;
+        const aStarts = a.name.toLowerCase().startsWith(q) ? 0 : 1;
+        const bStarts = b.name.toLowerCase().startsWith(q) ? 0 : 1;
         if (aStarts !== bStarts) return aStarts - bStarts;
-        return a.localeCompare(b, 'hu');
+        return a.name.localeCompare(b.name, 'hu');
       })
       .slice(0, 8);
 

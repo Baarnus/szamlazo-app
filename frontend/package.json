@@ -9,17 +9,23 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
+    "typecheck": "astro check",
     "astro": "astro"
   },
   "dependencies": {
+    "@szamlazo/shared": "file:../shared",
     "@tailwindcss/vite": "^4.3.3",
     "astro": "^7.3.1",
-    "tailwindcss": "^4.3.3"
+    "tailwindcss": "^4.3.3",
+    "zod": "^4.6.5"
   },
   "allowScripts": {
     "esbuild": true
   },
   "devDependencies": {
-    "daisyui": "^5.7.28"
+    "@astrojs/check": "^0.9.10",
+    "@types/node": "^26.6.2",
+    "daisyui": "^5.7.28",
+    "typescript": "^6.0.3"
   }
 }

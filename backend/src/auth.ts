@@ -174,9 +174,9 @@ authRouter.post('/forgot-password', async (c) => {
       .set({ resetToken, resetTokenExpiry: expiry })
       .where(eq(users.id, user.id));
       
-    // Dinamikus link generálása az aktuális frontend URL alapján
-    const origin = c.req.header('origin') || 'http://localhost:4321';
-    const resetLink = `${origin}/?resetToken=${resetToken}`;
+    // Biztonságos link generálása a konfigurált FRONTEND_URL alapján (Host header injection / poisoning védelem)
+    const frontendBaseUrl = (process.env.FRONTEND_URL || 'http://localhost:4321').replace(/\/+$/, '');
+    const resetLink = `${frontendBaseUrl}/?resetToken=${resetToken}`;
     
     // Email küldése Resend API-val
     if (!process.env.RESEND_API_KEY) {
@@ -190,7 +190,7 @@ authRouter.post('/forgot-password', async (c) => {
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
-        from: 'Számla AI <info@szamlazzjol.hu>',
+        from: process.env.MAIL_FROM || 'Számla AI <info@szamlazzjol.hu>',
         to: email,
         subject: 'Új jelszó beállítása - Számla AI',
         html: `

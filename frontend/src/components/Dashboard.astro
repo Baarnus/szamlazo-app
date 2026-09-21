@@ -64,25 +64,25 @@
             >-t
           </p>
           <p class="text-[11px] text-base-content/60">
-            Maximum 10 kép kötegenként
+            Maximum 10 kép vagy PDF számla kötegenként (JPEG, PNG, WEBP, PDF)
           </p>
           <input
             type="file"
             id="fileInput"
-            accept="image/*"
+            accept="image/*,application/pdf"
             multiple
             class="hidden"
           />
         </div>
 
-        <!-- Kijelölt képek előnézete -->
+        <!-- Kijelölt számlák előnézete -->
         <div id="previewContainer" class="hidden space-y-2">
           <div class="flex justify-between items-center">
             <span
               class="text-xs font-semibold text-base-content/70"
               id="fileCountBadge"
             >
-              Kiválasztva: 0/10 kép
+              Kiválasztva: 0/10 számla
             </span>
             <button
               type="button"
@@ -131,7 +131,7 @@
           <button
             id="voiceBtn"
             type="button"
-            title="Kattints és diktáld be a számlát!"
+            title="Kattints vagy tartsd nyomva a diktáláshoz (5 mp csend után vagy újbóli kattintásra áll le)"
             class="absolute top-2 right-2 btn btn-circle btn-sm btn-ghost text-primary hover:bg-primary/10 transition-all"
             aria-label="Hangos diktálás indítása"
           >
@@ -171,7 +171,7 @@
     </div>
   </div>
 
-  <!-- Globális Státusz és Export Sáv -->
+  <!-- Globális Folyamatjelző Státusz Sáv (Csak aktív kötegelt feldolgozáskor látható) -->
   <div
     id="statusAlert"
     class="hidden alert shadow-lg flex-col md:flex-row justify-between items-center gap-4"
@@ -186,28 +186,6 @@
         class="progress progress-primary w-full hidden"
         value="0"
         max="100"></progress>
-    </div>
-    <div class="flex gap-2">
-      <button
-        id="exportCsvBtn"
-        type="button"
-        class="btn btn-sm btn-neutral gap-2 hidden"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-        </svg>
-        CSV Exportálása
-      </button>
-      <button
-        id="exportRlbBtn"
-        type="button"
-        class="btn btn-sm btn-accent gap-2 hidden"
-      >
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
-        </svg>
-        RLB-60 Könyvelő Export
-      </button>
     </div>
   </div>
 
@@ -233,6 +211,106 @@
         id="activityLog"
         class="space-y-1 font-mono text-xs max-h-36 overflow-y-auto bg-base-200/50 p-2 rounded-lg border border-base-300"
       >
+      </div>
+    </div>
+  </div>
+
+  <!-- Számlalista Műveleti Sáv és Könyvelői Export (Mindig elérhető, ha van számla) -->
+  <div
+    id="invoicesToolbar"
+    class="hidden card bg-base-100 shadow-md border border-base-200 p-3 sm:p-4 space-y-3"
+  >
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-3">
+      <div class="flex items-center gap-2.5">
+        <div class="w-9 h-9 rounded-xl bg-primary/10 text-primary flex items-center justify-center text-lg font-bold">
+          📁
+        </div>
+        <div>
+          <h3 class="font-bold text-sm text-base-content flex items-center gap-2">
+            <span>Feldolgozott számlák</span>
+            <span id="invoicesCountBadge" class="badge badge-sm badge-primary font-semibold">0 db</span>
+          </h3>
+          <p class="text-[11px] text-base-content/60" id="invoicesCountSubtitle">Számlák megtekintése, szerkesztése és könyvelői exportja</p>
+        </div>
+      </div>
+
+      <!-- Export Gombok -->
+      <div class="flex flex-wrap items-center gap-2 w-full md:w-auto justify-end">
+        <button
+          id="exportCsvBtn"
+          type="button"
+          class="btn btn-sm btn-neutral gap-2 shadow-sm font-medium"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+          </svg>
+          CSV Exportálása
+        </button>
+        <button
+          id="exportRlbBtn"
+          type="button"
+          class="btn btn-sm btn-accent gap-2 shadow-sm font-medium"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+          </svg>
+          RLB-60 Könyvelő Export
+        </button>
+      </div>
+    </div>
+
+    <!-- Időszaki Dátumszűrő sáv könyvelői záráshoz -->
+    <div class="flex flex-wrap items-center justify-between gap-2.5 pt-2 border-t border-base-200 text-xs">
+      <div class="flex flex-wrap items-center gap-2">
+        <span class="text-base-content/70 font-semibold text-[11px] flex items-center gap-1">
+          <span>📅</span> Export időszak:
+        </span>
+        <div class="flex items-center gap-1 bg-base-200/60 p-1 rounded-lg border border-base-300">
+          <input
+            type="date"
+            id="exportFromDate"
+            class="input input-xs input-ghost text-xs w-32 focus:bg-base-100"
+            title="Kezdő dátum (YYYY-MM-DD)"
+          />
+          <span class="text-base-content/40 font-bold">–</span>
+          <input
+            type="date"
+            id="exportToDate"
+            class="input input-xs input-ghost text-xs w-32 focus:bg-base-100"
+            title="Záró dátum (YYYY-MM-DD)"
+          />
+        </div>
+      </div>
+
+      <div class="flex flex-wrap items-center gap-1" id="exportPresetGroup">
+        <button
+          type="button"
+          class="btn btn-xs btn-ghost font-medium export-preset-btn text-primary border border-primary/20 bg-primary/10"
+          data-preset="all"
+        >
+          Összes számla
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs btn-ghost font-medium export-preset-btn"
+          data-preset="this_month"
+        >
+          Ez a hónap
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs btn-ghost font-medium export-preset-btn"
+          data-preset="last_month"
+        >
+          Előző hónap
+        </button>
+        <button
+          type="button"
+          class="btn btn-xs btn-ghost font-medium export-preset-btn"
+          data-preset="this_year"
+        >
+          Ez az év
+        </button>
       </div>
     </div>
   </div>

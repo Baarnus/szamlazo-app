@@ -41,42 +41,44 @@ async function grantCreditsOnce(
   creditsToAdd: number,
   packageId?: string
 ): Promise<{ alreadyProcessed: boolean; newCredits?: number | undefined }> {
-  // 1. Ellenőrizzük, hogy ez a session már feldolgozásra került-e
-  const existing = await db.select()
-    .from(payments)
-    .where(eq(payments.stripeSessionId, stripeSessionId))
-    .limit(1);
+  return await db.transaction(async (tx) => {
+    // 1. Ellenőrizzük, hogy ez a session már feldolgozásra került-e
+    const existing = await tx.select()
+      .from(payments)
+      .where(eq(payments.stripeSessionId, stripeSessionId))
+      .limit(1);
 
-  if (existing.length > 0) {
-    return { alreadyProcessed: true };
-  }
-
-  // 2. Rögzítjük a fizetést (unique constraint véd a race condition ellen)
-  try {
-    await db.insert(payments).values({
-      userId,
-      stripeSessionId,
-      creditsAdded: creditsToAdd,
-      packageId: packageId || null,
-    });
-  } catch (err: any) {
-    // Unique constraint violation = már feldolgozva (race condition)
-    if (err.code === '23505' || err.message?.includes('unique') || err.message?.includes('duplicate')) {
+    if (existing.length > 0) {
       return { alreadyProcessed: true };
     }
-    throw err;
-  }
 
-  // 3. Kreditek jóváírása
-  const [updatedUser] = await db.update(users)
-    .set({
-      monthlyCredits: sql`${users.monthlyCredits} + ${creditsToAdd}`,
-      updatedAt: new Date(),
-    })
-    .where(eq(users.id, userId))
-    .returning({ monthlyCredits: users.monthlyCredits });
+    // 2. Rögzítjük a fizetést (unique constraint véd a race condition ellen)
+    try {
+      await tx.insert(payments).values({
+        userId,
+        stripeSessionId,
+        creditsAdded: creditsToAdd,
+        packageId: packageId || null,
+      });
+    } catch (err: any) {
+      // Unique constraint violation = már feldolgozva (race condition)
+      if (err.code === '23505' || err.message?.includes('unique') || err.message?.includes('duplicate')) {
+        return { alreadyProcessed: true };
+      }
+      throw err;
+    }
 
-  return { alreadyProcessed: false, newCredits: updatedUser?.monthlyCredits };
+    // 3. Kreditek jóváírása
+    const [updatedUser] = await tx.update(users)
+      .set({
+        monthlyCredits: sql`${users.monthlyCredits} + ${creditsToAdd}`,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning({ monthlyCredits: users.monthlyCredits });
+
+    return { alreadyProcessed: false, newCredits: updatedUser?.monthlyCredits };
+  });
 }
 
 // Checkout Session generálása
@@ -189,13 +191,17 @@ billingRouter.post('/webhook', async (c) => {
     const rawBody = await c.req.text();
     const event = stripe.webhooks.constructEvent(rawBody, signature, webhookSecret);
 
-    if (event.type === 'checkout.session.completed') {
+    if (event.type === 'checkout.session.completed' || event.type === 'checkout.session.async_payment_succeeded') {
       const session = event.data.object as Stripe.Checkout.Session;
-      const userId = session.metadata?.userId || session.client_reference_id;
-      const creditsToAdd = Number(session.metadata?.creditsToAdd || 0);
+      
+      // Csak kifizetett (paid) állapotú session-re írunk jóvá kreditet
+      if (session.payment_status === 'paid') {
+        const userId = session.metadata?.userId || session.client_reference_id;
+        const creditsToAdd = Number(session.metadata?.creditsToAdd || 0);
 
-      if (userId && creditsToAdd > 0) {
-        await grantCreditsOnce(userId, session.id, creditsToAdd, session.metadata?.packageId);
+        if (userId && creditsToAdd > 0) {
+          await grantCreditsOnce(userId, session.id, creditsToAdd, session.metadata?.packageId);
+        }
       }
     }
 

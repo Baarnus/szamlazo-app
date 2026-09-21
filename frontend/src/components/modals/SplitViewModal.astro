@@ -1,6 +1,6 @@
 ---
 // frontend/src/components/modals/SplitViewModal.astro
-import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
+import { SUPPORTED_CURRENCIES } from "@shared/types";
 ---
 <!-- SPLIT VIEW & SZERKESZTŐ MODAL -->
 <dialog id="editModal" class="modal modal-bottom sm:modal-middle">
@@ -74,6 +74,12 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
             src=""
             alt="Számla kép"
           />
+          <iframe
+            id="modalPdfViewer"
+            class="hidden w-full h-full min-h-[420px] rounded shadow border-0"
+            src=""
+            title="PDF számla előnézet"
+          ></iframe>
           <div
             id="modalTextPrompt"
             class="hidden max-w-full w-full flex-1 bg-base-100 rounded-xl p-3 text-sm overflow-y-auto border border-base-300 shadow-sm"
@@ -108,15 +114,24 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
           <span class="text-[11px] font-bold">Megnyitás →</span>
         </button>
 
-        <!-- FEJLÉC ADATOK -->
+        <!-- FEJLÉC ÉS FIZETÉSI ADATOK -->
         <div
           class="bg-base-200/60 p-3 sm:p-3.5 rounded-xl border border-base-300/70 space-y-2.5 shrink-0"
         >
-          <h4
-            class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-1.5"
-          >
-            <span>📋</span> Fejléc Adatok
-          </h4>
+          <div class="flex flex-wrap justify-between items-center gap-2">
+            <h4
+              class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-1.5"
+            >
+              <span>📋</span> Bizonylat Fejléc & Fizetés
+            </h4>
+            <div class="flex items-center gap-1.5 bg-base-100 px-2.5 py-1 rounded-lg border border-base-300 shadow-sm">
+              <span class="text-[11px] font-bold text-base-content/70">Irány:</span>
+              <select id="edit_invoice_direction" class="select select-ghost select-xs text-xs font-bold focus:bg-transparent">
+                <option value="incoming">📥 Költségszámla (Bejövő)</option>
+                <option value="outgoing">📤 Kimenő számla (Értékesítés)</option>
+              </select>
+            </div>
+          </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
             <div>
               <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
@@ -150,21 +165,21 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
             </div>
             <div>
               <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
-                >Vevő Neve</label
-              >
-              <input
-                type="text"
-                id="edit_vevo_neve"
-                class="input input-sm input-bordered w-full"
-              />
-            </div>
-            <div>
-              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
                 >Kelt Dátum</label
               >
               <input
                 type="date"
                 id="edit_kelt_datum"
+                class="input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Teljesítés Dátuma</label
+              >
+              <input
+                type="date"
+                id="edit_teljesites_datum"
                 class="input input-sm input-bordered w-full"
               />
             </div>
@@ -177,6 +192,20 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
                 id="edit_fizetesi_hatarido"
                 class="input input-sm input-bordered w-full"
               />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Fizetési Mód</label
+              >
+              <select
+                id="edit_fizetesi_mod"
+                class="select select-sm select-bordered w-full font-medium"
+              >
+                <option value="Átutalás">Átutalás</option>
+                <option value="Készpénz">Készpénz</option>
+                <option value="Bankkártya">Bankkártya</option>
+                <option value="PayPal">PayPal</option>
+              </select>
             </div>
             <div>
               <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
@@ -197,12 +226,118 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
             </div>
             <div>
               <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Megjegyzés / Közlemény</label
+              >
+              <input
+                type="text"
+                id="edit_megjegyzes"
+                class="input input-sm input-bordered w-full"
+                placeholder="Opcionális megjegyzés"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- VEVŐ ADATAI (SZÁMLÁZZ.HU & ÁFA TV. KÖTELEZŐ MEZŐK) -->
+        <div
+          class="bg-base-200/60 p-3 sm:p-3.5 rounded-xl border border-base-300/70 space-y-2.5 shrink-0"
+        >
+          <div class="flex justify-between items-center">
+            <h4
+              class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-1.5"
+            >
+              <span>👤</span> Vevő Adatai (Számla címzettje)
+            </h4>
+            <span class="text-[10px] text-base-content/60 font-medium">Kiállításhoz a név & cím kötelező</span>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 text-xs">
+            <div class="sm:col-span-2 relative">
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Vevő Neve *</label
+              >
+              <input
+                type="text"
+                id="edit_vevo_neve"
+                class="input input-sm input-bordered w-full"
+                placeholder="Pl. Kovács Béla vagy Minta Kft."
+                autocomplete="off"
+                required
+              />
+              <!-- Partner autocomplete dropdown a Split View-hoz -->
+              <div
+                id="splitPartnerSuggestions"
+                class="hidden absolute z-50 left-0 right-0 top-full mt-1 bg-base-100 border border-base-300 rounded-xl shadow-xl overflow-hidden max-h-56 overflow-y-auto"
+              >
+                <ul id="splitPartnerList" class="menu menu-sm p-1"></ul>
+              </div>
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Adószám (cég esetén)</label
+              >
+              <input
+                type="text"
+                id="edit_vevo_adoszam"
+                class="input input-sm input-bordered w-full"
+                placeholder="12345678-1-42"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Vevő Email</label
+              >
+              <input
+                type="email"
+                id="edit_vevo_email"
+                class="input input-sm input-bordered w-full"
+                placeholder="vevo@ceg.hu"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
                 >Ország</label
               >
               <input
                 type="text"
-                id="edit_orszag"
-                class="input input-sm input-bordered w-full uppercase"
+                id="edit_vevo_orszag"
+                class="input input-sm input-bordered w-full"
+                value="Magyarország"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Irányítószám *</label
+              >
+              <input
+                type="text"
+                id="edit_vevo_iranyitoszam"
+                class="input input-sm input-bordered w-full"
+                placeholder="1111"
+                required
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Település / Város *</label
+              >
+              <input
+                type="text"
+                id="edit_vevo_telepules"
+                class="input input-sm input-bordered w-full"
+                placeholder="Budapest"
+                required
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Cím (utca, házszám) *</label
+              >
+              <input
+                type="text"
+                id="edit_vevo_cim"
+                class="input input-sm input-bordered w-full"
+                placeholder="Fő utca 1."
+                required
               />
             </div>
           </div>
@@ -229,13 +364,14 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
             <table class="table table-xs w-full" id="editItemsTable">
               <thead class="bg-base-200 hidden sm:table-header-group">
                 <tr>
-                  <th class="w-2/5">Megnevezés</th>
+                  <th class="w-1/3">Megnevezés</th>
                   <th class="w-14 text-right">Menny.</th>
-                  <th class="w-24 text-right">Egységár</th>
+                  <th class="w-14 text-center">Egység</th>
+                  <th class="w-20 text-right">Egységár</th>
                   <th class="w-16 text-right">Áfa %</th>
-                  <th class="w-24 text-right">Nettó</th>
-                  <th class="w-20 text-right">Áfa érték</th>
-                  <th class="w-24 text-right">Bruttó</th>
+                  <th class="w-20 text-right">Nettó</th>
+                  <th class="w-18 text-right">Áfa érték</th>
+                  <th class="w-20 text-right">Bruttó</th>
                   <th class="w-8"></th>
                 </tr>
               </thead>
@@ -253,7 +389,7 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
             <div>Áfa összesen: <b id="displayAfa" class="font-mono font-bold">0</b></div>
           </div>
           <div class="text-right w-full sm:w-auto flex justify-between sm:block border-t sm:border-0 border-base-300 pt-1.5 sm:pt-0">
-            <span class="text-xs text-base-content/70">Fizetendő Bruttó:</span>
+            <span class="text-xs text-base-content/70">Fizetendő Bruttó: </span>
             <span class="text-lg sm:text-xl font-bold text-success font-mono" id="displayBrutto"
               >0</span
             >
@@ -271,10 +407,17 @@ import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
 
     <!-- MODAL FOOTER & ACTIONS (Sticky at bottom on mobile) -->
     <div class="modal-action border-t border-base-200 pt-2.5 sm:pt-3 flex flex-col gap-2.5 shrink-0 bg-base-100 mt-auto">
-      <label class="label cursor-pointer justify-start items-start gap-2.5 p-0 text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
-        <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-sm checkbox-secondary shrink-0 mt-0.5" />
-        <span class="label-text text-[11px] leading-tight text-base-content/80">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
-      </label>
+      <div id="incomingInvoiceNotice" class="hidden alert alert-info text-xs p-2.5 rounded-xl border border-info/30 flex items-center gap-2">
+        <span class="text-base shrink-0">📁</span>
+        <span class="leading-tight"><b>Bejövő költségszámla:</b> A bizonylat könyvelői exporthoz (CSV / RLB-60) jóváhagyható és menthető. Nem kerül kiállításra a Számlázz.hu-n.</span>
+      </div>
+
+      <div id="legalLiabilityContainer">
+        <label class="label cursor-pointer justify-start items-start gap-2.5 p-0 text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
+          <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-sm checkbox-secondary shrink-0 mt-0.5" />
+          <span class="label-text text-[11px] leading-tight text-base-content/80">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
+        </label>
+      </div>
       
       <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 w-full">
         <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost order-3 sm:order-1">Mégse</button>

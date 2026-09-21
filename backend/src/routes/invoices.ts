@@ -1,13 +1,12 @@
 // backend/src/routes/invoices.ts
 // Számla CRUD végpontok: lista, soft delete, szerkesztés.
 import { Hono } from 'hono';
-import { desc, eq, and } from 'drizzle-orm';
+import { desc, eq, and, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { invoices, auditLogs } from '../db/schema.js';
 import { getAuthUser } from '../auth.js';
 import { getInvoiceImageUrl } from '../lib/s3.js';
-import { InvoiceDataSchema } from '../schemas/invoice.js';
-import type { InvoiceData } from '../../../shared/types.js';
+import { InvoiceDataSchema, type InvoiceData } from '@szamlazo/shared';
 
 export const invoicesRouter = new Hono();
 
@@ -23,12 +22,19 @@ invoicesRouter.get('/', async (c) => {
     const offsetQuery = Number(c.req.query('offset')) || 0;
     const safeLimit = Math.min(Math.max(limitQuery, 1), 200);
 
-    const list = await db.select()
-      .from(invoices)
-      .where(and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false)))
-      .orderBy(desc(invoices.createdAt))
-      .limit(safeLimit)
-      .offset(offsetQuery);
+    const conditions = and(eq(invoices.userId, user.id), eq(invoices.isDeleted, false));
+
+    const [countResult, list] = await Promise.all([
+      db.select({ count: sql<number>`count(*)::int` }).from(invoices).where(conditions),
+      db.select()
+        .from(invoices)
+        .where(conditions)
+        .orderBy(desc(invoices.createdAt))
+        .limit(safeLimit)
+        .offset(offsetQuery)
+    ]);
+
+    const total = countResult[0]?.count ?? 0;
 
     const invoicesWithUrls = await Promise.all(
       list.map(async (inv) => {
@@ -46,6 +52,7 @@ invoicesRouter.get('/', async (c) => {
 
     return c.json({
       success: true,
+      total,
       count: invoicesWithUrls.length,
       limit: safeLimit,
       offset: offsetQuery,
@@ -75,7 +82,7 @@ invoicesRouter.delete('/:id', async (c) => {
 
     await db.update(invoices)
       .set({ isDeleted: true, updatedAt: new Date() })
-      .where(eq(invoices.id, invoiceId));
+      .where(and(eq(invoices.id, invoiceId), eq(invoices.userId, user.id)));
 
     await db.insert(auditLogs).values({
       userId: user.id,
@@ -109,14 +116,19 @@ invoicesRouter.patch('/:id', async (c) => {
     const isValid = validation.success;
     const cleanData = (isValid ? validation.data : body.data) as InvoiceData;
 
-    await db.update(invoices)
+    const [updated] = await db.update(invoices)
       .set({
         data: cleanData,
         isValid: body.isValid !== undefined ? body.isValid : isValid,
         status: isValid ? 'reviewed' : 'needs_review',
         updatedAt: new Date(),
       })
-      .where(and(eq(invoices.id, id), eq(invoices.userId, user.id)));
+      .where(and(eq(invoices.id, id), eq(invoices.userId, user.id)))
+      .returning({ id: invoices.id });
+
+    if (!updated) {
+      return c.json({ success: false, error: 'Számla nem található vagy nincs jogosultságod a szerkesztéséhez.' }, 404);
+    }
 
     return c.json({
       success: true,

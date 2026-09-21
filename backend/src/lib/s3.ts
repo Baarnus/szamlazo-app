@@ -4,15 +4,29 @@ dotenv.config(); // <-- EZ KELL AZ ELEJÉRE!
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-export const s3 = new S3Client({
-  endpoint: process.env.S3_ENDPOINT || 'http://minio:9000',
-  region: process.env.S3_REGION || 'us-east-1',
-  credentials: {
-    accessKeyId: process.env.S3_ACCESS_KEY || 'minioadmin',
-    secretAccessKey: process.env.S3_SECRET_KEY || '5:?EgI9HX291Ie,5TbH',
-  },
-  forcePathStyle: true, // MinIO használata esetén kötelező
-});
+let _s3Client: S3Client | null = null;
+
+function getS3Client(): S3Client {
+  if (!_s3Client) {
+    const accessKey = process.env.S3_ACCESS_KEY;
+    const secretKey = process.env.S3_SECRET_KEY;
+
+    if (!accessKey || !secretKey) {
+      throw new Error('❌ KRITIKUS HIBA: S3_ACCESS_KEY és/vagy S3_SECRET_KEY környezeti változó nincs beállítva!');
+    }
+
+    _s3Client = new S3Client({
+      endpoint: process.env.S3_ENDPOINT || 'http://minio:9000',
+      region: process.env.S3_REGION || 'us-east-1',
+      credentials: {
+        accessKeyId: accessKey,
+        secretAccessKey: secretKey,
+      },
+      forcePathStyle: true, // MinIO használata esetén kötelező
+    });
+  }
+  return _s3Client;
+}
 
 const BUCKET = process.env.S3_BUCKET_NAME || 'invoices';
 
@@ -25,7 +39,7 @@ export async function uploadInvoiceBuffer(
   const prefix = userId ? `users/${userId}` : 'anonymous';
   const s3Key = `${prefix}/${Date.now()}-${Math.random().toString(36).substring(2, 8)}.${ext}`;
 
-  await s3.send(
+  await getS3Client().send(
     new PutObjectCommand({
       Bucket: BUCKET,
       Key: s3Key,
@@ -47,5 +61,5 @@ export async function getInvoiceImageUrl(s3Key: string, expiresInSeconds = 3600)
     Key: s3Key,
   });
 
-  return await getSignedUrl(s3, command, { expiresIn: expiresInSeconds });
+  return await getSignedUrl(getS3Client(), command, { expiresIn: expiresInSeconds });
 }

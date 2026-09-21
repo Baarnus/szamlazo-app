@@ -1,6 +1,12 @@
 ---
 import "../styles/global.css";
-import { SUPPORTED_CURRENCIES } from "../../../shared/types";
+import Navbar from "../components/Navbar.astro";
+import LandingView from "../components/LandingView.astro";
+import Dashboard from "../components/Dashboard.astro";
+import AuthModal from "../components/modals/AuthModal.astro";
+import BillingModal from "../components/modals/BillingModal.astro";
+import SettingsModal from "../components/modals/SettingsModal.astro";
+import SplitViewModal from "../components/modals/SplitViewModal.astro";
 ---
 
 <html lang="hu" data-theme="dark">
@@ -33,577 +39,9 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
   </head>
   <body class="min-h-screen bg-base-300 p-3 md:p-8 font-sans">
     <div class="max-w-5xl mx-auto space-y-6">
-      <!-- FEJLÉC (Navbar) -->
-      <header
-        class="navbar bg-base-100 shadow-lg rounded-box px-4 md:px-6 py-2.5 flex justify-between items-center border border-base-200"
-      >
-        <div class="flex items-center gap-2">
-          <span class="text-2xl">🧾</span>
-          <div>
-            <h1
-              class="font-extrabold text-base sm:text-lg md:text-xl text-primary tracking-tight whitespace-nowrap"
-            >
-              Számla AI
-            </h1>
-            <p class="text-[10px] text-base-content/50 hidden sm:block">
-              Automatikus számlafeldolgozás másodpercek alatt
-            </p>
-          </div>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <!-- BEJELENTKEZETT ÁLLAPOT -->
-          <div id="userProfileBar" class="hidden items-center gap-2">
-            <div
-              class="badge badge-primary font-semibold text-xs py-2.5 px-3 gap-1 shadow-sm"
-            >
-              <span>⚡</span>
-              <span id="userCreditsDisplay">0</span>
-              <span class="opacity-80 font-normal">kredit</span>
-            </div>
-
-            <!-- KIEMELT ZÖLD FELTÖLTÉS GOMB -->
-            <button
-              type="button"
-              id="openBillingBtn"
-              class="btn btn-xs bg-emerald-600 hover:bg-emerald-500 text-white font-bold px-3 border-0 shadow"
-            >
-              + Feltöltés
-            </button>
-
-            <button
-              type="button"
-              id="openSettingsBtn"
-              class="btn btn-ghost btn-xs text-base-content font-medium"
-            >
-              ⚙️ Beállítások
-            </button>
-
-            <button
-              type="button"
-              id="logoutBtn"
-              class="btn btn-ghost btn-xs text-error font-medium"
-            >
-              Kijelentkezés
-            </button>
-          </div>
-
-          <!-- KIJELENTKEZETT ÁLLAPOT -->
-          <div id="guestNavAction" class="flex items-center gap-2">
-            <button
-              id="openAuthModalBtn"
-              type="button"
-              class="btn btn-primary btn-sm gap-1 shadow-md"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                class="h-4 w-4"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                ></path>
-              </svg>
-              Belépés / Fiók
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <!-- ======================================================== -->
-      <!-- 1. LANDING PAGE NÉZET (Csak kijelentkezve látható)       -->
-      <!-- ======================================================== -->
-      <main id="guestLandingView" class="space-y-12 py-4">
-        <!-- Hero Szekció -->
-        <section class="text-center space-y-6 pt-4 sm:pt-8">
-          <div
-            class="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-4 py-1 text-xs font-semibold"
-          >
-            <span>✨</span> Mesterséges Intelligencia alapú bizonylatfelismerés
-          </div>
-
-          <h2
-            class="text-3xl sm:text-5xl font-black tracking-tight leading-tight max-w-3xl mx-auto"
-          >
-            Okos Számlázás Pillanatok Alatt. <br class="hidden sm:inline" />
-            <span
-              class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent"
-            >
-              Fotózz, írj egy mondatot, és kész.
-            </span>
-          </h2>
-
-          <p
-            class="text-sm sm:text-base text-base-content/70 max-w-2xl mx-auto leading-relaxed"
-          >
-            Csak írd le kinek akarsz számlázni, vagy fotózd le a gyűrött blokkokat, és az okos rendszerünk mindent kitölt helyetted. Állítsd ki a számlát azonnal az összekötött számlázóprogramodban, vagy küldd el a költségeket Excelben a könyvelődnek!
-          </p>
-
-          <div
-            class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2"
-          >
-            <button
-              type="button"
-              class="btn btn-primary btn-md w-full sm:w-auto shadow-lg text-base hero-register-cta"
-            >
-              🚀 15 Ingyenes kredit azonnal
-            </button>
-            <a
-              href="#howItWorks"
-              class="btn btn-ghost btn-md w-full sm:w-auto text-sm"
-            >
-              Hogyan működik? ↓
-            </a>
-          </div>
-
-          <!-- Értékelés / Bizalmi indikátor -->
-          <div
-            class="flex flex-wrap items-center justify-center gap-6 text-xs text-base-content/60 pt-4"
-          >
-            <span class="flex items-center gap-1"
-              >✓ Magyar és külföldi számlák</span
-            >
-            <span class="flex items-center gap-1">✓ 99.4% AI pontosság</span>
-            <span class="flex items-center gap-1"
-              >✓ 0 Ft havidíj (Pay-as-you-go)</span
-            >
-          </div>
-        </section>
-
-        <!-- Interaktív Előnézet Kártya (Illusztráció) -->
-        <section
-          class="card bg-base-100 border border-base-200 shadow-2xl p-4 sm:p-6"
-        >
-          <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-            <div
-              class="md:col-span-5 bg-base-200/60 rounded-2xl p-4 border border-base-300 flex flex-col items-center justify-center text-center space-y-3 min-h-[220px]"
-            >
-              <div
-                class="w-16 h-20 bg-base-100 border border-base-300 rounded-lg shadow-sm flex flex-col p-2 space-y-1 rotate-[-3deg]"
-              >
-                <div class="w-full h-2 bg-primary/30 rounded"></div>
-                <div class="w-3/4 h-1.5 bg-base-300 rounded"></div>
-                <div class="w-1/2 h-1.5 bg-base-300 rounded"></div>
-                <div class="w-full h-4 bg-base-200 rounded mt-auto"></div>
-              </div>
-              <p class="text-xs font-semibold text-base-content/80">
-                AI Szöveg / Fotó / Feltöltött fájl / Kép URL
-              </p>
-              <span class="badge badge-sm badge-outline"
-                >Bármilyen bemeneti formátum</span
-              >
-            </div>
-
-            <div class="md:col-span-2 flex justify-center">
-              <div
-                class="badge badge-primary badge-lg py-3 px-4 font-bold shadow-md"
-              >
-                AI Feldolgozás ➔
-              </div>
-            </div>
-
-            <div
-              class="md:col-span-5 bg-base-200/40 rounded-2xl p-4 border border-base-300 space-y-2 text-xs"
-            >
-              <div
-                class="flex justify-between items-center border-b border-base-300 pb-2"
-              >
-                <span class="font-bold text-primary">Strukturált Adatok</span>
-                <span class="badge badge-success badge-xs">✓ Valid</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Partner:</span>
-                <b class="truncate">Google Cloud EMEA Ltd.</b>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Számlaszám:</span>
-                <span class="font-mono">INV-2026-9812</span>
-              </div>
-              <div class="flex justify-between">
-                <span class="text-base-content/60">Nettó / ÁFA:</span>
-                <span>100.00 EUR / 27.00 EUR</span>
-              </div>
-              <div
-                class="flex justify-between font-bold text-success pt-1 border-t border-base-300"
-              >
-                <span>Bruttó végösszeg:</span>
-                <span>127.00 EUR</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <!-- 3 Lépéses folyamat szekció -->
-        <section id="howItWorks" class="space-y-6 pt-4">
-          <div class="text-center space-y-2">
-            <h3 class="text-2xl font-bold tracking-tight">
-              Hogyan működik 3 egyszerű lépésben?
-            </h3>
-            <p class="text-xs sm:text-sm text-base-content/60">
-              Nem kell appot telepítened, böngészőből és mobilról is azonnal
-              elérhető.
-            </p>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div
-              class="card bg-base-100 border border-base-200 p-5 space-y-3 shadow-md"
-            >
-              <div
-                class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg"
-              >
-                1
-              </div>
-              <h4 class="font-bold text-sm">Fotózz, tölts fel, vagy írj!</h4>
-              <p class="text-xs text-base-content/70 leading-relaxed">
-                Fotózd le a blokkot a mobiloddal, tölts fel egy PDF-et, másolj be egy kép linkjét, vagy csak írd le saját szavaiddal, kinek állítanál ki számlát!
-              </p>
-            </div>
-
-            <div
-              class="card bg-base-100 border border-base-200 p-5 space-y-3 shadow-md"
-            >
-              <div
-                class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg"
-              >
-                2
-              </div>
-              <h4 class="font-bold text-sm">A rendszer mindent előkészít</h4>
-              <p class="text-xs text-base-content/70 leading-relaxed">
-                Az okos programunk pillanatok alatt kiolvassa az adatokat a képekről, vagy a mondataid alapján kitölti a számla mezőit. Neked már csak át kell nézned!
-              </p>
-            </div>
-
-            <div
-              class="card bg-base-100 border border-base-200 p-5 space-y-3 shadow-md"
-            >
-              <div
-                class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg"
-              >
-                3
-              </div>
-              <h4 class="font-bold text-sm">Egy kattintás és kész</h4>
-              <p class="text-xs text-base-content/70 leading-relaxed">
-                A jóváhagyás után a számlát azonnal kiállíthatod az összekötött számlázóprogramodon keresztül! A lefotózott költségeidet pedig egy táblázatban (CSV) küldheted a könyvelődnek.
-              </p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Kredit Csomagok (Árazási Előnézet) -->
-        <section class="space-y-6 pt-4">
-          <div class="text-center space-y-2">
-            <h3 class="text-2xl font-bold tracking-tight">
-              Kreditcsomagok — Havidíj nélkül
-            </h3>
-            <p class="text-xs sm:text-sm text-base-content/60">
-              Csak azért fizetsz, amit ténylegesen feldolgozol. A kreditek sosem
-              járnak le.
-            </p>
-          </div>
-
-          <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <!-- Kezdő -->
-            <div
-              class="card bg-base-100 border border-base-300 p-5 flex flex-col justify-between hover:border-primary transition-all"
-            >
-              <div>
-                <h4 class="font-bold text-sm">Kezdő</h4>
-                <div class="text-2xl font-black my-2 text-primary">
-                  50 <span class="text-xs font-normal text-base-content/60"
-                    >kredit</span>
-                </div>
-                <p class="text-sm font-semibold">2 990 Ft</p>
-                <p class="text-[11px] text-base-content/50">~60 Ft / számla</p>
-              </div>
-              <button
-                type="button"
-                class="btn btn-outline btn-primary btn-sm w-full mt-6 hero-register-cta"
-                >Kipróbálom</button
-              >
-            </div>
-
-            <!-- Pro -->
-            <div
-              class="card bg-primary/5 border-2 border-primary p-5 flex flex-col justify-between relative shadow-xl"
-            >
-              <span
-                class="badge badge-primary badge-xs absolute -top-2.5 right-4 font-semibold"
-                >Legnépszerűbb</span
-              >
-              <div>
-                <h4 class="font-bold text-sm">Pro</h4>
-                <div class="text-2xl font-black my-2 text-primary">
-                  150 <span class="text-xs font-normal text-base-content/60"
-                    >kredit</span>
-                </div>
-                <p class="text-sm font-semibold">6 990 Ft</p>
-                <p class="text-[11px] text-base-content/50">~46 Ft / számla</p>
-              </div>
-              <button
-                type="button"
-                class="btn btn-primary btn-sm w-full mt-6 hero-register-cta"
-                >Választom</button
-              >
-            </div>
-
-            <!-- Üzleti -->
-            <div
-              class="card bg-base-100 border border-base-300 p-5 flex flex-col justify-between hover:border-primary transition-all"
-            >
-              <div>
-                <h4 class="font-bold text-sm">Üzleti</h4>
-                <div class="text-2xl font-black my-2 text-primary">
-                  500 <span class="text-xs font-normal text-base-content/60"
-                    >kredit</span>
-                </div>
-                <p class="text-sm font-semibold">17 990 Ft</p>
-                <p class="text-[11px] text-base-content/50">~36 Ft / számla</p>
-              </div>
-              <button
-                type="button"
-                class="btn btn-outline btn-primary btn-sm w-full mt-6 hero-register-cta"
-                >Választom</button
-              >
-            </div>
-          </div>
-        </section>
-
-        <!-- Alsó CTA Sáv -->
-        <section
-          class="card bg-gradient-to-r from-primary/20 via-base-100 to-primary/10 border border-primary/30 p-6 text-center space-y-4 shadow-xl"
-        >
-          <h3 class="text-xl sm:text-2xl font-bold">
-            Készen állsz az automatizálásra?
-          </h3>
-          <p class="text-xs sm:text-sm text-base-content/70 max-w-xl mx-auto">
-            Regisztrálj másodpercek alatt bankkártya megadása nélkül, és kapsz
-            15 ingyenes kreditet a teszteléshez.
-          </p>
-          <button
-            type="button"
-            class="btn btn-primary btn-md shadow-md hero-register-cta"
-          >
-            Ingyenes fiók létrehozása
-          </button>
-        </section>
-      </main>
-
-      <!-- ======================================================== -->
-      <!-- 2. APPLIKÁCIÓ / DASHBOARD NÉZET (Csak belépve látható)  -->
-      <!-- ======================================================== -->
-      <main id="appDashboardView" class="space-y-5 hidden">
-        <!-- Beviteli doboz Fülekkel -->
-        <div class="card bg-base-100 shadow-xl border border-base-200">
-          <div class="card-body p-4 md:p-6">
-            <div role="tablist" class="tabs tabs-boxed mb-3">
-              <a role="tab" id="tabUpload" class="tab tab-active font-medium"
-                >📸 Fotó / Fájl</a
-              >
-              <a role="tab" id="tabUrl" class="tab font-medium"
-                >🔗 Link megadása</a
-              >
-              <a role="tab" id="tabTextPrompt" class="tab font-medium"
-                >📝 Számla szövegből</a
-              >
-            </div>
-
-            <!-- 1. Fül: Fájlok feltöltése / Mobil Kamera / Drag & Drop -->
-            <div id="panelUpload" class="space-y-3">
-              <div class="block md:hidden">
-                <button
-                  type="button"
-                  id="cameraBtn"
-                  class="btn btn-primary w-full gap-2 text-base font-semibold shadow-md py-3"
-                >
-                  📸 Számla Fotózása
-                </button>
-
-                <input
-                  type="file"
-                  id="cameraInput"
-                  accept="image/*"
-                  capture="environment"
-                  class="hidden"
-                />
-              </div>
-
-              <!-- Drop Zone & Fájlböngésző -->
-              <div
-                id="dropZone"
-                class="border-2 border-dashed border-base-content/20 hover:border-primary rounded-2xl p-5 text-center cursor-pointer transition-all duration-200 bg-base-200/40 hover:bg-base-200/80 flex flex-col items-center justify-center min-h-[120px] gap-1"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-8 w-8 text-primary/70 mb-1"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
-                  ></path>
-                </svg>
-                <p class="font-medium text-xs sm:text-sm">
-                  Húzd ide a számlákat, <span class="text-primary underline"
-                    >tallózd be</span
-                  >, vagy nyomj <kbd class="kbd kbd-xs">Ctrl</kbd> + <kbd
-                    class="kbd kbd-xs">V</kbd
-                  >-t
-                </p>
-                <p class="text-[11px] text-base-content/60">
-                  Maximum 10 kép kötegenként
-                </p>
-                <input
-                  type="file"
-                  id="fileInput"
-                  accept="image/*"
-                  multiple
-                  class="hidden"
-                />
-              </div>
-
-              <!-- Kijelölt képek előnézete -->
-              <div id="previewContainer" class="hidden space-y-2">
-                <div class="flex justify-between items-center">
-                  <span
-                    class="text-xs font-semibold text-base-content/70"
-                    id="fileCountBadge"
-                  >
-                    Kiválasztva: 0/10 kép
-                  </span>
-                  <button
-                    type="button"
-                    id="clearFilesBtn"
-                    class="btn btn-ghost btn-xs text-error"
-                  >
-                    Összes törlése
-                  </button>
-                </div>
-                <div
-                  id="previewGrid"
-                  class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"
-                >
-                </div>
-              </div>
-            </div>
-
-            <!-- 2. Fül: URL-ek megadása -->
-            <div id="panelUrl" class="hidden space-y-3">
-              <label class="block text-xs text-base-content/70">
-                Illeszd be a képek közvetlen URL-jét (soronként 1 link, max 10
-                db):
-              </label>
-              <textarea
-                id="urlInput"
-                rows="3"
-                placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png"
-                class="textarea textarea-bordered w-full font-mono text-xs"
-              ></textarea>
-            </div>
-
-            <!-- 3. Fül: Szöveges (AI) Prompt megadása -->
-            <div id="panelTextPrompt" class="hidden space-y-3">
-              <label class="block text-xs text-base-content/70">
-                Írd le egyszerűen, hogy kinek (vagy kiknek) és miről szeretnél számlákat generálni:
-              </label>
-              <textarea
-                id="textPromptInput"
-                rows="3"
-                placeholder="Például: Számlát szeretnék kiállítani a Kovács Kft-nek (11111111-2-41, Bp. Fő u. 1.) 50.000 Ft-ról áfamentesen fejlesztésért. Továbbá egy ugyanilyet a Kiss Kft-nek is!"
-                class="textarea textarea-bordered w-full text-sm"
-              ></textarea>
-            </div>
-
-            <div class="card-actions justify-end mt-3">
-              <button
-                id="processBtn"
-                type="button"
-                class="btn btn-primary w-full md:w-auto"
-              >
-                Feldolgozás Indítása
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Globális Státusz és Export Sáv -->
-        <div
-          id="statusAlert"
-          class="hidden alert shadow-lg flex-col md:flex-row justify-between items-center gap-4"
-        >
-          <div class="flex-1 w-full space-y-1">
-            <div class="flex justify-between items-center">
-              <span id="statusMessage" class="font-medium text-sm"></span>
-              <span id="progressPercent" class="text-xs font-bold"></span>
-            </div>
-            <progress
-              id="progressBar"
-              class="progress progress-primary w-full hidden"
-              value="0"
-              max="100"></progress>
-          </div>
-          <div class="flex gap-2">
-            <button
-              id="exportCsvBtn"
-              type="button"
-              class="btn btn-sm btn-neutral gap-2 hidden"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
-              </svg>
-              CSV Exportálása
-            </button>
-            <button
-              id="exportRlbBtn"
-              type="button"
-              class="btn btn-sm btn-accent gap-2 hidden"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
-              </svg>
-              RLB-60 Könyvelő Export
-            </button>
-          </div>
-        </div>
-
-        <!-- Élő Feldolgozási Sorrend Napló Panel -->
-        <div
-          id="logBoxContainer"
-          class="hidden card bg-base-100 shadow-md border border-base-200"
-        >
-          <div class="card-body p-3">
-            <div class="flex justify-between items-center mb-1">
-              <span
-                class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-2"
-              >
-                <span
-                  class="inline-block w-2 h-2 rounded-full bg-success animate-pulse"
-                ></span>
-                Élő Feldolgozási Napló
-              </span>
-              <span class="text-[11px] text-base-content/50" id="logSpeedInfo"
-              ></span>
-            </div>
-            <div
-              id="activityLog"
-              class="space-y-1 font-mono text-xs max-h-36 overflow-y-auto bg-base-200/50 p-2 rounded-lg border border-base-300"
-            >
-            </div>
-          </div>
-        </div>
-
-        <!-- Eredmények konténere -->
-        <div id="resultsWrapper" class="space-y-5"></div>
-      </main>
+      <Navbar />
+      <LandingView />
+      <Dashboard />
     </div>
 
     <!-- LÁBLÉC (JOGI DOKUMENTUMOK) -->
@@ -617,476 +55,11 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       </div>
     </footer>
 
-    <!-- KREDIT VÁSÁRLÁS MODAL (Stripe) -->
-    <dialog id="billingModal" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box max-w-2xl bg-base-100 p-6">
-        <div
-          class="flex justify-between items-center border-b border-base-200 pb-3 mb-4"
-        >
-          <h3 class="font-bold text-lg text-primary flex items-center gap-2">
-            ⚡ Kreditek feltöltése
-          </h3>
-          <form method="dialog">
-            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
-          </form>
-        </div>
-
-        <p class="text-xs text-base-content/70 mb-5">
-          Válassz kreditcsomagot. A kreditek nem járnak le, és azonnal
-          felhasználhatók a számlák feldolgozására.
-        </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <!-- Kezdő -->
-          <div
-            class="border border-base-300 rounded-2xl p-4 flex flex-col justify-between hover:border-primary transition-all bg-base-200/30"
-          >
-            <div>
-              <h4 class="font-bold text-sm">Kezdő</h4>
-              <div class="text-2xl font-black my-2 text-primary">
-                50 <span class="text-xs font-normal text-base-content/60"
-                  >kredit</span>
-              </div>
-              <p class="text-xs font-semibold">2 990 Ft</p>
-              <p class="text-[11px] text-base-content/50">~60 Ft / db</p>
-            </div>
-            <button
-              type="button"
-              class="btn btn-outline btn-primary btn-sm w-full mt-4 buy-pkg-btn"
-              data-pkg="starter">Vásárlás</button
-            >
-          </div>
-
-          <!-- Pro -->
-          <div
-            class="border-2 border-primary bg-primary/5 rounded-2xl p-4 flex flex-col justify-between relative shadow-lg"
-          >
-            <span
-              class="badge badge-primary badge-xs absolute -top-2.5 right-3 font-semibold"
-              >Népszerű</span
-            >
-            <div>
-              <h4 class="font-bold text-sm">Pro</h4>
-              <div class="text-2xl font-black my-2 text-primary">
-                150 <span class="text-xs font-normal text-base-content/60"
-                  >kredit</span>
-              </div>
-              <p class="text-xs font-semibold">6 990 Ft</p>
-              <p class="text-[11px] text-base-content/50">~46 Ft / db</p>
-            </div>
-            <button
-              type="button"
-              class="btn btn-primary btn-sm w-full mt-4 buy-pkg-btn"
-              data-pkg="pro">Vásárlás</button
-            >
-          </div>
-
-          <!-- Üzleti -->
-          <div
-            class="border border-base-300 rounded-2xl p-4 flex flex-col justify-between hover:border-primary transition-all bg-base-200/30"
-          >
-            <div>
-              <h4 class="font-bold text-sm">Üzleti</h4>
-              <div class="text-2xl font-black my-2 text-primary">
-                500 <span class="text-xs font-normal text-base-content/60"
-                  >kredit</span>
-              </div>
-              <p class="text-xs font-semibold">17 990 Ft</p>
-              <p class="text-[11px] text-base-content/50">~36 Ft / db</p>
-            </div>
-            <button
-              type="button"
-              class="btn btn-outline btn-primary btn-sm w-full mt-4 buy-pkg-btn"
-              data-pkg="business">Vásárlás</button
-            >
-          </div>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- AUTH MODAL -->
-    <dialog id="authModal" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box max-w-sm p-6 bg-base-100">
-        <div
-          class="flex justify-between items-center border-b border-base-200 pb-3 mb-4"
-        >
-          <h3 class="font-bold text-lg text-primary" id="authModalTitle">
-            Bejelentkezés
-          </h3>
-          <form method="dialog">
-            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
-          </form>
-        </div>
-
-        <div role="tablist" class="tabs tabs-boxed mb-4">
-          <a role="tab" id="authTabLogin" class="tab tab-active">Belépés</a>
-          <a role="tab" id="authTabRegister" class="tab">Regisztráció</a>
-        </div>
-
-        <form id="authForm" class="space-y-3">
-          <div>
-            <label class="label label-text text-xs p-0 mb-1">E-mail cím</label>
-            <input
-              type="email"
-              id="authEmail"
-              required
-              class="input input-sm input-bordered w-full"
-              placeholder="pelda@ceg.hu"
-            />
-          </div>
-          <div>
-            <label class="label label-text text-xs p-0 mb-1">Jelszó</label>
-            <input
-              type="password"
-              id="authPassword"
-              required
-              minlength="6"
-              class="input input-sm input-bordered w-full"
-              placeholder="••••••••"
-            />
-            <div class="flex justify-end mt-1" id="forgotPasswordContainer">
-              <a href="#" id="forgotPasswordLink" class="text-xs text-primary link link-hover">Elfelejtetted a jelszavad?</a>
-            </div>
-          </div>
-
-          <div
-            id="authErrorAlert"
-            class="hidden alert alert-error text-xs p-2 rounded-lg"
-          >
-          </div>
-
-          <button
-            type="submit"
-            id="authSubmitBtn"
-            class="btn btn-primary btn-sm w-full mt-2"
-          >
-            Bejelentkezés
-          </button>
-        </form>
-      </div>
-    </dialog>
-
-    <!-- BEÁLLÍTÁSOK MODAL -->
-    <dialog id="settingsModal" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box p-6 bg-base-100">
-        <div class="flex justify-between items-center border-b border-base-200 pb-3 mb-4">
-          <h3 class="font-bold text-lg text-primary">⚙️ Integrációk és Beállítások</h3>
-          <form method="dialog">
-            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
-          </form>
-        </div>
-
-        <form id="settingsForm" class="space-y-4">
-          <div class="space-y-2">
-            <h4 class="font-bold text-sm">1. Számlázz.hu E-számla készítése</h4>
-            <p class="text-xs text-base-content/70">Ha szeretnél automatikusan e-számlát kiállítani az AI által generált, vagy a fotózott bizonylatok adataiból, add meg a Számla Agent API kulcsodat.</p>
-            <input
-              type="text"
-              id="set_szamlazz_hu_api_key"
-              class="input input-sm input-bordered w-full"
-              placeholder="Számlázz.hu API kulcs"
-            />
-          </div>
-
-          <div class="divider my-1"></div>
-
-          <div class="space-y-2">
-            <h4 class="font-bold text-sm">2. NAV Online Számla bekötése</h4>
-            <p class="text-xs text-base-content/70">Kézi papírszámlák (számlatömb) közvetlen NAV beküldéséhez add meg a technikai felhasználó adatait.</p>
-            <input type="text" id="set_nav_technical_user" class="input input-sm input-bordered w-full mb-1" placeholder="Technikai felhasználónév" />
-            <input type="password" id="set_nav_technical_password" class="input input-sm input-bordered w-full mb-1" placeholder="Technikai jelszó" />
-            <input type="text" id="set_nav_sign_key" class="input input-sm input-bordered w-full mb-1" placeholder="XML Aláírókulcs" />
-            <input type="text" id="set_nav_exchange_key" class="input input-sm input-bordered w-full" placeholder="XML Cserekulcs" />
-          </div>
-
-          <div id="settingsErrorAlert" class="hidden alert alert-error text-xs p-2 rounded-lg mt-3"></div>
-
-          <div class="modal-action mt-4">
-            <button type="submit" id="settingsSubmitBtn" class="btn btn-primary btn-sm w-full">Mentés</button>
-          </div>
-        </form>
-
-        <div class="divider my-4">Veszélyzóna</div>
-        <div class="space-y-2 text-center">
-          <p class="text-xs text-base-content/70">A fiók törlésével minden adatod, feltöltött számlád és kredited véglegesen törlődik. A művelet nem visszavonható!</p>
-          <button type="button" id="deleteAccountBtn" class="btn btn-error btn-outline btn-sm w-full">Fiók végleges törlése (GDPR)</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- DELETE ACCOUNT CONFIRM MODAL -->
-    <dialog id="deleteAccountConfirmModal" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box bg-base-100">
-        <h3 class="font-bold text-lg text-error">Fiók végleges törlése</h3>
-        <p class="py-4 text-sm text-base-content/80">
-          Biztos vagy benne? A fiókod, minden beállításod és feltöltött számlád <b>véglegesen</b> törlődik. Ezt a műveletet <b>nem lehet visszavonni</b>!
-        </p>
-        <div class="modal-action">
-          <form method="dialog">
-            <button class="btn btn-sm btn-ghost">Mégsem</button>
-          </form>
-          <button type="button" id="confirmDeleteAccountBtn" class="btn btn-sm btn-error">Igen, törlöm a fiókom</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- DELETE INVOICE CONFIRM MODAL -->
-    <dialog id="deleteInvoiceConfirmModal" class="modal modal-bottom sm:modal-middle">
-      <div class="modal-box bg-base-100">
-        <h3 class="font-bold text-lg text-error">Számla törlése</h3>
-        <p class="py-4 text-sm text-base-content/80">
-          Biztosan törölni szeretnéd ezt a számlát? A módosítás <b>nem visszavonható</b>!
-        </p>
-        <div class="modal-action">
-          <form method="dialog">
-            <button class="btn btn-sm btn-ghost">Mégsem</button>
-          </form>
-          <button type="button" id="confirmDeleteInvoiceBtn" class="btn btn-sm btn-error">Igen, törlöm</button>
-        </div>
-      </div>
-    </dialog>
-
-    <!-- SPLIT VIEW & SZERKESZTŐ MODAL -->
-    <dialog id="editModal" class="modal modal-bottom sm:modal-middle">
-      <div
-        class="modal-box w-11/12 max-w-7xl max-h-[92vh] flex flex-col p-4 md:p-6 bg-base-100"
-      >
-        <div
-          class="flex justify-between items-center border-b border-base-200 pb-3"
-        >
-          <div class="flex items-center gap-3">
-            <h3 class="font-bold text-lg text-primary" id="modalTitle">
-              Számla Ellenőrzése és Módosítása
-            </h3>
-            <span id="modalValidBadge" class="badge">Valid</span>
-          </div>
-          <form method="dialog">
-            <button class="btn btn-sm btn-circle btn-ghost">✕</button>
-          </form>
-        </div>
-
-        <div
-          class="grid grid-cols-1 lg:grid-cols-12 gap-6 my-4 flex-1 overflow-hidden"
-        >
-          <div
-            class="lg:col-span-5 bg-base-200 rounded-xl p-2 flex flex-col items-center justify-start overflow-auto max-h-[40vh] lg:max-h-[68vh] border border-base-300"
-          >
-            <div
-              class="w-full flex justify-between items-center px-2 py-1 mb-1"
-            >
-              <span id="modalImageLabel" class="text-xs text-base-content/60 font-medium"
-                >Eredeti számlakép</span
-              >
-              <a
-                id="modalImageLink"
-                target="_blank"
-                class="text-xs text-primary underline">Megnyitás új lapon ↗</a
-              >
-            </div>
-            <img
-              id="modalImage"
-              class="max-w-full h-auto object-contain rounded shadow"
-              src=""
-              alt="Számla kép"
-            />
-            <div
-              id="modalTextPrompt"
-              class="hidden max-w-full w-full h-full bg-base-200 rounded p-4 text-sm whitespace-pre-wrap overflow-y-auto shadow-inner"
-            ></div>
-          </div>
-
-          <div
-            class="lg:col-span-7 flex flex-col gap-4 overflow-y-auto max-h-[45vh] lg:max-h-[68vh] pr-1"
-          >
-            <div
-              class="bg-base-200/50 p-3 rounded-xl border border-base-200 space-y-3"
-            >
-              <h4
-                class="text-xs font-bold uppercase tracking-wider text-base-content/60"
-              >
-                Fejléc Adatok
-              </h4>
-              <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs">
-                <div>
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Kiállító Neve</label
-                  >
-                  <input
-                    type="text"
-                    id="edit_kiallito_neve"
-                    class="input input-xs input-bordered w-full"
-                  />
-                </div>
-                <div>
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Kiállító Adószáma</label
-                  >
-                  <input
-                    type="text"
-                    id="edit_kiallito_adoszam"
-                    class="input input-xs input-bordered w-full"
-                  />
-                </div>
-                <div>
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Számlaszám</label
-                  >
-                  <input
-                    type="text"
-                    id="edit_szamlaszam"
-                    class="input input-xs input-bordered w-full font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Vevő Neve</label
-                  >
-                  <input
-                    type="text"
-                    id="edit_vevo_neve"
-                    class="input input-xs input-bordered w-full"
-                  />
-                </div>
-                <div>
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Kelt Dátum</label
-                  >
-                  <input
-                    type="date"
-                    id="edit_kelt_datum"
-                    class="input input-xs input-bordered w-full"
-                  />
-                </div>
-                <div>
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Fizetési Határidő</label
-                  >
-                  <input
-                    type="date"
-                    id="edit_fizetesi_hatarido"
-                    class="input input-xs input-bordered w-full"
-                  />
-                </div>
-              </div>
-
-              <div class="flex items-center gap-3 pt-1">
-                <div class="w-44">
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Pénznem (ISO)</label
-                  >
-                  <select
-                    id="edit_penznem"
-                    class="select select-xs select-bordered w-full font-bold"
-                  >
-                    {
-                      SUPPORTED_CURRENCIES.map((curr) => (
-                        <option value={curr.code}>
-                          {curr.code} ({curr.symbol})
-                        </option>
-                      ))
-                    }
-                  </select>
-                </div>
-                <div class="w-24">
-                  <label class="label label-text text-[11px] p-0 mb-1"
-                    >Ország</label
-                  >
-                  <input
-                    type="text"
-                    id="edit_orszag"
-                    class="input input-xs input-bordered w-full uppercase"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div class="space-y-2">
-              <div class="flex justify-between items-center">
-                <h4
-                  class="text-xs font-bold uppercase tracking-wider text-base-content/60"
-                >
-                  Tételsorok
-                </h4>
-                <button
-                  type="button"
-                  id="addItemBtn"
-                  class="btn btn-xs btn-outline btn-primary">+ Új tétel</button
-                >
-              </div>
-
-              <div class="overflow-x-auto border border-base-200 rounded-lg">
-                <table class="table table-xs w-full" id="editItemsTable">
-                  <thead class="bg-base-200">
-                    <tr>
-                      <th class="w-1/3">Megnevezés</th>
-                      <th class="w-12 text-right">Menny.</th>
-                      <th class="w-20 text-right">Egységár</th>
-                      <th class="w-14 text-right">Áfa %</th>
-                      <th class="w-20 text-right">Nettó</th>
-                      <th class="w-20 text-right">Áfa érték</th>
-                      <th class="w-20 text-right">Bruttó</th>
-                      <th class="w-8"></th>
-                    </tr>
-                  </thead>
-                  <tbody id="editItemsTbody"></tbody>
-                </table>
-              </div>
-            </div>
-
-            <div
-              class="bg-base-200 p-3 rounded-xl flex flex-wrap justify-between items-center gap-3 border border-base-300 mt-auto"
-            >
-              <div class="text-xs space-y-1">
-                <div>Nettó összesen: <b id="displayNetto">0</b></div>
-                <div>Áfa összesen: <b id="displayAfa">0</b></div>
-              </div>
-              <div class="text-right">
-                <span class="text-xs text-base-content/60 block"
-                  >Fizetendő Bruttó:</span
-                >
-                <span class="text-lg font-bold text-success" id="displayBrutto"
-                  >0</span
-                >
-              </div>
-            </div>
-
-            <div
-              id="modalWarningBox"
-              class="hidden alert alert-warning text-xs p-2 rounded-lg"
-            >
-            </div>
-          </div>
-        </div>
-
-        <div class="modal-action border-t border-base-200 pt-3 flex flex-col gap-3">
-          <label class="label cursor-pointer justify-start gap-2 text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
-            <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-xs checkbox-secondary shrink-0" />
-            <span class="label-text text-[10px] leading-tight text-base-content/70">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
-          </label>
-          
-          <div class="flex flex-col sm:flex-row justify-between items-center gap-3 w-full">
-            <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost w-full sm:w-auto">Mégse</button>
-            <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                id="issueSzamlazzHuBtn"
-                class="btn btn-sm btn-secondary shrink-0 w-full sm:w-auto"
-                disabled
-              >
-                🧾 E-számla Kiállítása
-              </button>
-              <button
-                type="button"
-                id="saveChangesBtn"
-                class="btn btn-sm btn-primary w-full sm:w-auto"
-              >
-                Mentés
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </dialog>
+    <!-- MODÁLOK -->
+    <BillingModal />
+    <AuthModal />
+    <SettingsModal />
+    <SplitViewModal />
 
     <!-- MODERN DAISYUI TOAST CONTAINER -->
     <div id="toastContainer" class="toast toast-top toast-end z-50 hidden">
@@ -1371,6 +344,48 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       const cancelModalBtn = document.getElementById(
         "cancelModalBtn",
       ) as HTMLButtonElement;
+
+      // Split View Mobile Tabs & Responsive Handlers
+      const splitTabForm = document.getElementById("splitTabForm") as HTMLButtonElement | null;
+      const splitTabPreview = document.getElementById("splitTabPreview") as HTMLButtonElement | null;
+      const splitTabPreviewIcon = document.getElementById("splitTabPreviewIcon") as HTMLSpanElement | null;
+      const splitTabPreviewLabel = document.getElementById("splitTabPreviewLabel") as HTMLSpanElement | null;
+      const modalPreviewCol = document.getElementById("modalPreviewCol") as HTMLDivElement | null;
+      const modalFormCol = document.getElementById("modalFormCol") as HTMLDivElement | null;
+      const quickViewDocBtn = document.getElementById("quickViewDocBtn") as HTMLButtonElement | null;
+      const quickViewDocIcon = document.getElementById("quickViewDocIcon") as HTMLSpanElement | null;
+      const quickViewDocLabel = document.getElementById("quickViewDocLabel") as HTMLSpanElement | null;
+      const backToFormBtn = document.getElementById("backToFormBtn") as HTMLButtonElement | null;
+
+      function switchSplitViewTab(tab: "form" | "preview") {
+        if (!splitTabForm || !splitTabPreview || !modalPreviewCol || !modalFormCol) return;
+        if (tab === "form") {
+          splitTabForm.classList.add("btn-primary");
+          splitTabForm.classList.remove("btn-ghost");
+          splitTabPreview.classList.remove("btn-primary");
+          splitTabPreview.classList.add("btn-ghost");
+
+          modalFormCol.classList.remove("hidden");
+          modalFormCol.classList.add("flex");
+          modalPreviewCol.classList.add("hidden");
+          modalPreviewCol.classList.remove("flex");
+        } else {
+          splitTabPreview.classList.add("btn-primary");
+          splitTabPreview.classList.remove("btn-ghost");
+          splitTabForm.classList.remove("btn-primary");
+          splitTabForm.classList.add("btn-ghost");
+
+          modalPreviewCol.classList.remove("hidden");
+          modalPreviewCol.classList.add("flex");
+          modalFormCol.classList.add("hidden");
+          modalFormCol.classList.remove("flex");
+        }
+      }
+
+      splitTabForm?.addEventListener("click", () => switchSplitViewTab("form"));
+      splitTabPreview?.addEventListener("click", () => switchSplitViewTab("preview"));
+      quickViewDocBtn?.addEventListener("click", () => switchSplitViewTab("preview"));
+      backToFormBtn?.addEventListener("click", () => switchSplitViewTab("form"));
 
       let currentMode: "upload" | "url" | "text" = "upload";
       let selectedFiles: File[] = [];
@@ -2082,15 +1097,31 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
         let imageSrc = "";
         let isTextPrompt = false;
 
-        if (item.source && item.source.startsWith("Szöveges prompt:")) {
+        switchSplitViewTab("form");
+
+        const isVoice = item.source && item.source.startsWith("Hangüzenet (diktálás):");
+        const isText = item.source && item.source.startsWith("Szöveges prompt:");
+
+        if (isVoice || isText) {
           isTextPrompt = true;
-          modalImageLabel.textContent = "Felhasználói prompt utasítás";
-          modalTextPrompt.textContent = item.source.replace("Szöveges prompt: ", "");
+          if (splitTabPreviewLabel) splitTabPreviewLabel.textContent = isVoice ? "Hangüzenet" : "Prompt";
+          if (splitTabPreviewIcon) splitTabPreviewIcon.textContent = isVoice ? "🎙️" : "📝";
+          if (quickViewDocLabel) quickViewDocLabel.textContent = isVoice ? "🎙️ Diktált hangüzenet leirata" : "📝 Szöveges prompt utasítás";
+          if (quickViewDocIcon) quickViewDocIcon.textContent = isVoice ? "🎙️" : "📝";
+          modalImageLabel.textContent = isVoice ? "🎙️ Hangüzenet leirata (prompt)" : "📝 Szöveges prompt utasítás";
+          const promptText = (isVoice
+            ? item.source.replace("Hangüzenet (diktálás): ", "")
+            : item.source.replace("Szöveges prompt: ", "")).trim();
+          modalTextPrompt.innerHTML = `<div class="badge ${isVoice ? "badge-secondary" : "badge-primary"} badge-sm mb-3 gap-1 font-semibold">${isVoice ? "🎙️ Diktált hangüzenet" : "📝 Írott utasítás"}</div><div class="text-sm font-medium leading-relaxed bg-base-100/70 p-3 rounded-xl border border-base-300 shadow-sm">${promptText}</div>`;
           modalTextPrompt.classList.remove("hidden");
           modalImage.classList.add("hidden");
           modalImageLink.classList.add("hidden");
         } else {
           isTextPrompt = false;
+          if (splitTabPreviewLabel) splitTabPreviewLabel.textContent = "Bizonylat";
+          if (splitTabPreviewIcon) splitTabPreviewIcon.textContent = "📷";
+          if (quickViewDocLabel) quickViewDocLabel.textContent = "📷 Eredeti számlakép megtekintése";
+          if (quickViewDocIcon) quickViewDocIcon.textContent = "📷";
           modalImageLabel.textContent = "Eredeti számlakép";
           modalTextPrompt.classList.add("hidden");
           modalImage.classList.remove("hidden");
@@ -2149,24 +1180,41 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
         (currentEditingData.tetelek || []).forEach((t, i) => {
           const tr = document.createElement("tr");
+          tr.className = "mobile-item-card sm:table-row border-b border-base-300 sm:border-0";
           tr.innerHTML = `
-              <td>
-                <input type="text" class="input input-xs input-bordered w-full item-name" data-index="${i}" value="${t.megnevezes || ""}" />
+              <td class="col-span-full sm:table-cell p-0 sm:p-2">
+                <div class="sm:hidden flex justify-between items-center mb-1">
+                  <span class="text-[11px] font-bold text-primary">#${i + 1} Tétel megnevezése</span>
+                  <button type="button" class="btn btn-ghost btn-xs text-error btn-circle remove-item-btn" data-index="${i}" title="Tétel törlése">&times;</button>
+                </div>
+                <input type="text" class="input input-sm sm:input-xs input-bordered w-full item-name font-medium" data-index="${i}" value="${t.megnevezes || ""}" placeholder="Tétel megnevezése" />
               </td>
-              <td>
-                <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-qty" data-index="${i}" value="${t.mennyiseg || 1}" />
+              <td class="sm:table-cell p-0 sm:p-2">
+                <div class="sm:hidden text-[10px] text-base-content/60 font-semibold mb-0.5">Mennyiség</div>
+                <input type="number" step="any" class="input input-sm sm:input-xs input-bordered w-full text-right item-qty" data-index="${i}" value="${t.mennyiseg || 1}" />
               </td>
-              <td>
-                <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-unit" data-index="${i}" value="${t.egysegar || 0}" />
+              <td class="sm:table-cell p-0 sm:p-2">
+                <div class="sm:hidden text-[10px] text-base-content/60 font-semibold mb-0.5">Egységár</div>
+                <input type="number" step="any" class="input input-sm sm:input-xs input-bordered w-full text-right item-unit" data-index="${i}" value="${t.egysegar || 0}" />
               </td>
-              <td>
-                <input type="number" step="any" class="input input-xs input-bordered w-full text-right item-vat-rate" data-index="${i}" value="${t.afa_szazalek || 0}" />
+              <td class="sm:table-cell p-0 sm:p-2">
+                <div class="sm:hidden text-[10px] text-base-content/60 font-semibold mb-0.5">Áfa %</div>
+                <input type="number" step="any" class="input input-sm sm:input-xs input-bordered w-full text-right item-vat-rate" data-index="${i}" value="${t.afa_szazalek || 0}" />
               </td>
-              <td class="text-right font-medium text-xs item-net-display">${formatCurrency(t.netto_ar, cur)}</td>
-              <td class="text-right text-xs text-base-content/70 item-vat-display">${formatCurrency(t.afa_ertek || 0, cur)}</td>
-              <td class="text-right font-bold text-xs item-gross-display">${formatCurrency(t.brutto_ar, cur)}</td>
-              <td class="text-center">
-                <button type="button" class="btn btn-ghost btn-xs text-error btn-circle remove-item-btn" data-index="${i}">&times;</button>
+              <td class="sm:table-cell p-1 sm:p-2 text-left sm:text-right font-medium text-xs">
+                <span class="sm:hidden block text-[10px] text-base-content/60 font-semibold">Nettó</span>
+                <span class="item-net-display font-mono">${formatCurrency(t.netto_ar, cur)}</span>
+              </td>
+              <td class="sm:table-cell p-1 sm:p-2 text-left sm:text-right text-xs text-base-content/70">
+                <span class="sm:hidden block text-[10px] text-base-content/60 font-semibold">Áfa érték</span>
+                <span class="item-vat-display font-mono">${formatCurrency(t.afa_ertek || 0, cur)}</span>
+              </td>
+              <td class="sm:table-cell p-1 sm:p-2 text-left sm:text-right font-bold text-xs">
+                <span class="sm:hidden block text-[10px] text-base-content/60 font-semibold">Bruttó</span>
+                <span class="item-gross-display text-primary sm:text-inherit font-mono">${formatCurrency(t.brutto_ar, cur)}</span>
+              </td>
+              <td class="hidden sm:table-cell text-center p-0 sm:p-2">
+                <button type="button" class="btn btn-ghost btn-xs text-error btn-circle remove-item-btn" data-index="${i}" title="Tétel törlése">&times;</button>
               </td>
             `;
           editItemsTbody.appendChild(tr);
@@ -2295,11 +1343,11 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
         const mathValid = Math.abs(sumNetto + sumAfa - sumBrutto) <= 1.0;
         if (mathValid) {
-          modalValidBadge.className = "badge badge-success";
+          modalValidBadge.className = "badge badge-success badge-sm sm:badge-md shrink-0 whitespace-nowrap font-semibold";
           modalValidBadge.textContent = "✓ Valid";
           modalWarningBox.classList.add("hidden");
         } else {
-          modalValidBadge.className = "badge badge-warning";
+          modalValidBadge.className = "badge badge-warning badge-sm sm:badge-md shrink-0 whitespace-nowrap font-semibold";
           modalValidBadge.textContent = "⚠ Eltérés";
           modalWarningBox.textContent = `A számított nettó (${sumNetto.toFixed(2)}) és áfa (${sumAfa.toFixed(2)}) nem egyezik a bruttóval (${sumBrutto.toFixed(2)}).`;
           modalWarningBox.classList.remove("hidden");
@@ -2436,20 +1484,23 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
 
           const rows = (d.tetelek || [])
             .map((t) => {
+              const afaSzazalek = t.afa_szazalek !== undefined && t.afa_szazalek !== null ? t.afa_szazalek : 27;
+              const netto = Number(t.netto_ar || 0);
+              const brutto = Number(t.brutto_ar || (netto + Math.round((netto * afaSzazalek) / 100)));
               const afaErtek =
                 t.afa_ertek !== undefined && t.afa_ertek !== null
                   ? t.afa_ertek
-                  : Number(t.brutto_ar || 0) - Number(t.netto_ar || 0);
+                  : Math.max(0, brutto - netto);
 
               return `
                   <tr>
                     <td class="font-medium">${t.megnevezes || "-"}</td>
                     <td class="text-right">${t.mennyiseg}</td>
                     <td class="text-right">${formatCurrency(t.egysegar, currency)}</td>
-                    <td class="text-right"><span class="badge badge-ghost badge-sm">${t.afa_szazalek}%</span></td>
-                    <td class="text-right">${formatCurrency(t.netto_ar, currency)}</td>
+                    <td class="text-right"><span class="badge badge-ghost badge-sm">${afaSzazalek}%</span></td>
+                    <td class="text-right">${formatCurrency(netto, currency)}</td>
                     <td class="text-right text-base-content/70">${formatCurrency(afaErtek, currency)}</td>
-                    <td class="text-right font-semibold">${formatCurrency(t.brutto_ar, currency)}</td>
+                    <td class="text-right font-semibold">${formatCurrency(brutto, currency)}</td>
                   </tr>
                 `;
             })
@@ -2467,30 +1518,39 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
           card.innerHTML = `
               <div class="card-body space-y-4 p-4 md:p-6">
                 <div class="flex flex-wrap justify-between items-center border-b border-base-200 pb-3 gap-2">
-                  <div>
-                    <h3 class="font-bold text-lg text-primary">
-                      ${d.kiallito_neve || "Ismeretlen kiállító"}
-                      ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1">${d.kiallito_orszag}</span>` : ""}
-                    </h3>
+                  <div class="min-w-0">
+                    <div class="flex items-center gap-2 flex-wrap">
+                      <h3 class="font-bold text-lg text-primary">
+                        ${d.kiallito_neve || "Ismeretlen kiállító"}
+                        ${d.kiallito_orszag ? `<span class="badge badge-sm badge-outline ml-1 shrink-0 whitespace-nowrap">${d.kiallito_orszag}</span>` : ""}
+                      </h3>
+                      ${item.source && item.source.startsWith("Hangüzenet (diktálás):")
+                        ? `<span class="badge badge-secondary badge-xs gap-1 font-medium shrink-0 whitespace-nowrap" title="${item.source}">🎙️ Diktált számla</span>`
+                        : (item.source && item.source.startsWith("Szöveges prompt:")
+                          ? `<span class="badge badge-primary badge-xs gap-1 font-medium shrink-0 whitespace-nowrap" title="${item.source}">📝 Szöveges számla</span>`
+                          : "")
+                      }
+                    </div>
                     <div class="text-xs text-base-content/60">
                       Számlaszám: <span class="font-mono font-semibold">${d.szamlaszam || "Nincs"}</span> 
                       ${d.kiallito_adoszam ? `| Adószám: ${d.kiallito_adoszam}` : ""}
                     </div>
                   </div>
-                  <div class="flex items-center gap-2">
-                    <span class="badge badge-accent font-bold">${currency}</span>
-                    <span class="badge ${item.isValid ? "badge-success" : "badge-warning"}">
+                  <div class="flex items-center gap-1.5 sm:gap-2 flex-wrap sm:flex-nowrap shrink-0">
+                    <span class="badge badge-accent font-bold shrink-0 whitespace-nowrap">${currency}</span>
+                    <span class="badge ${item.isValid ? "badge-success" : "badge-warning"} shrink-0 font-semibold whitespace-nowrap inline-flex items-center">
                       ${item.isValid ? "✓ Valid" : "⚠ Ellenőrizendő"}
                     </span>
-                    <button type="button" class="btn btn-sm btn-outline btn-primary edit-card-btn ml-2" data-index="${index}">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <button type="button" class="btn btn-sm btn-outline btn-primary edit-card-btn shrink-0 gap-1" data-index="${index}">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                       </svg>
-                      Ellenőrzés / Szerkesztés
+                      <span class="hidden sm:inline">Ellenőrzés / Szerkesztés</span>
+                      <span class="sm:hidden">Szerkesztés</span>
                     </button>
                     ${item.dbId ? `
-                    <button type="button" class="btn btn-sm btn-outline btn-error delete-card-btn" data-id="${item.dbId}" title="Törlés">
-                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <button type="button" class="btn btn-sm btn-outline btn-error delete-card-btn shrink-0" data-id="${item.dbId}" title="Törlés">
+                      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                       </svg>
                     </button>
@@ -2657,6 +1717,218 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
       exportRlbBtn.addEventListener("click", triggerBackendRlbDownload);
 
       // ==========================================
+      // 🎙️ HANGALAPÚ DIKTÁLÁS (Web Speech API)
+      // ==========================================
+
+      const voiceBtn = document.getElementById("voiceBtn") as HTMLButtonElement | null;
+      const voiceStatus = document.getElementById("voiceStatus") as HTMLDivElement | null;
+      const voiceStatusText = document.getElementById("voiceStatusText") as HTMLSpanElement | null;
+
+      // Böngésző támogatás ellenőrzése — ha NEM támogatott, elrejtjük a gombot
+      const SpeechRecognitionAPI =
+        (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+
+      const voiceNotSupported = document.getElementById("voiceNotSupported") as HTMLDivElement | null;
+
+      if (!SpeechRecognitionAPI) {
+        voiceBtn?.classList.add("hidden");
+        // Tájékoztató üzenet Firefox / nem támogatott böngészőkön
+        voiceNotSupported?.classList.remove("hidden");
+        voiceNotSupported?.classList.add("flex");
+      }
+
+      if (SpeechRecognitionAPI && voiceBtn) {
+
+        let recognition: any = null;
+        let isListening = false;
+
+        let wasLastPromptVoice = false;
+
+        function startListening() {
+          if (isListening) {
+            recognition?.stop();
+            return;
+          }
+
+          recognition = new SpeechRecognitionAPI();
+          recognition.lang = "hu-HU";
+          recognition.continuous = false;
+          recognition.interimResults = true;
+
+          let finalTranscript = "";
+
+          recognition.onstart = () => {
+            isListening = true;
+            // Pulsing piros animáció a gomb megnyomásakor
+            voiceBtn!.classList.add("btn-error", "text-white");
+            voiceBtn!.classList.remove("btn-ghost", "text-primary");
+            voiceStatus!.classList.remove("hidden");
+            voiceStatus!.classList.add("flex");
+            voiceStatusText!.textContent = "Figyelek… (Befejezéshez kattints mégegyszer)";
+          };
+
+          recognition.onresult = (event: any) => {
+            let interim = "";
+            for (let i = event.resultIndex; i < event.results.length; i++) {
+              const t = event.results[i][0].transcript;
+              if (event.results[i].isFinal) {
+                finalTranscript += t;
+              } else {
+                interim += t;
+              }
+            }
+            // Valós idejű megjelenítés: az aktuális ideiglenes szöveg is látható
+            const current = textPromptInput.value;
+            // Csak az interim-et mutatjuk zárójelben
+            textPromptInput.value = finalTranscript || current;
+            if (interim) {
+              voiceStatusText!.textContent = `„${interim}"`;
+            }
+          };
+
+          recognition.onerror = (event: any) => {
+            const msgs: Record<string, string> = {
+              "not-allowed": "Mikrofon-hozzáférés megtagadva. Engedélyezd a böngészőben!",
+              "no-speech": "Nem hallottam semmit. Próbáld újra!",
+              "audio-capture": "Nem található mikrofon az eszközön.",
+              "network": "Hálózati hiba az átírás során.",
+            };
+            showToast(msgs[event.error] || `Hang felismerési hiba: ${event.error}`, "error");
+          };
+
+          recognition.onend = () => {
+            isListening = false;
+            voiceBtn!.classList.remove("btn-error", "text-white");
+            voiceBtn!.classList.add("btn-ghost", "text-primary");
+            voiceStatus!.classList.add("hidden");
+            voiceStatus!.classList.remove("flex");
+            voiceStatusText!.textContent = "Figyelek…";
+
+            // Ha van végleges szöveg, beletesszük a textareába és bejelöljük, hogy hangüzenet volt
+            if (finalTranscript.trim()) {
+              wasLastPromptVoice = true;
+              const existing = textPromptInput.value.trim();
+              textPromptInput.value = existing
+                ? existing + " " + finalTranscript.trim()
+                : finalTranscript.trim();
+              textPromptInput.focus();
+              showToast("🎙️ Hangüzenet sikeresen rögzítve szövegként!", "info");
+            }
+          };
+
+          recognition.start();
+        }
+
+        voiceBtn.addEventListener("click", () => {
+          if (isListening) {
+            recognition?.stop();
+          } else {
+            startListening();
+          }
+        });
+      }
+
+      // ==========================================
+      // 🧠 OKOS PARTNER AUTOCOMPLETE
+      // ==========================================
+
+      const partnerSuggestions = document.getElementById("partnerSuggestions") as HTMLDivElement | null;
+      const partnerList = document.getElementById("partnerList") as HTMLUListElement | null;
+
+      let partnerDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+
+      function closePartnerDropdown() {
+        partnerSuggestions?.classList.add("hidden");
+        if (partnerList) partnerList.innerHTML = "";
+      }
+
+      async function fetchPartnerSuggestions(query: string) {
+        if (!authToken || query.length < 2) {
+          closePartnerDropdown();
+          return;
+        }
+
+        try {
+          const res = await fetch(
+            `${API_BASE}/api/partners/suggest?q=${encodeURIComponent(query)}`,
+            { headers: { Authorization: `Bearer ${authToken}` } }
+          );
+          if (!res.ok) return;
+          const data = await res.json();
+          const partners: string[] = data.partners || [];
+
+          if (partners.length === 0) {
+            closePartnerDropdown();
+            return;
+          }
+
+          // Dropdown feltöltése
+          if (partnerList) partnerList.innerHTML = "";
+          for (const name of partners) {
+            const li = document.createElement("li");
+            // Kiemelés: a query-vel egyező rész bold
+            const safeQuery = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const highlighted = name.replace(
+              new RegExp(`(${safeQuery})`, "gi"),
+              '<mark class="bg-primary/20 text-primary rounded px-0.5">$1</mark>'
+            );
+            li.innerHTML = `<a class="text-sm py-1 px-2 rounded hover:bg-base-200 cursor-pointer partner-item">${highlighted}</a>`;
+
+            // Kattintáskor beillesztjük a nevet a textarea-ba
+            li.addEventListener("mousedown", (e) => {
+              e.preventDefault(); // Megakadályozzuk a textarea blur-t
+              // Lecseréljük az utolsó szót (amin a query alapul) a teljes névre
+              const val = textPromptInput.value;
+              const lastSpace = val.lastIndexOf(" ");
+              const prefix = lastSpace >= 0 ? val.substring(0, lastSpace + 1) : "";
+              textPromptInput.value = prefix + name;
+              textPromptInput.focus();
+              closePartnerDropdown();
+            });
+
+            partnerList?.appendChild(li);
+          }
+
+          partnerSuggestions?.classList.remove("hidden");
+        } catch {
+          // Csendben elnyeljük — a partner autocomplete nem kritikus funkció
+        }
+      }
+
+      textPromptInput.addEventListener("input", () => {
+        if (partnerDebounceTimer) clearTimeout(partnerDebounceTimer);
+
+        const val = textPromptInput.value;
+        // Az utolsó "szó" (szóköz utáni rész) alapján keresünk
+        const lastWord = val.split(/\s+/).pop() || "";
+
+        if (lastWord.length < 2) {
+          closePartnerDropdown();
+          return;
+        }
+
+        partnerDebounceTimer = setTimeout(() => {
+          fetchPartnerSuggestions(lastWord);
+        }, 300);
+      });
+
+      // Dropdown bezárása ha a felhasználó máshova kattint
+      document.addEventListener("click", (e) => {
+        const target = e.target as Node;
+        if (
+          !partnerSuggestions?.contains(target) &&
+          !textPromptInput.contains(target)
+        ) {
+          closePartnerDropdown();
+        }
+      });
+
+      // ESC gombra is bezárjuk
+      textPromptInput.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") closePartnerDropdown();
+      });
+
+      // ==========================================
       // FELDOLGOZÁS INDÍTÁSA (SSE STREAMING)
       // ==========================================
 
@@ -2714,12 +1986,19 @@ import { SUPPORTED_CURRENCIES } from "../../../shared/types";
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${authToken}`,
               },
-              body: JSON.stringify({ textPrompt }),
+              body: JSON.stringify({
+                textPrompt,
+                isVoicePrompt: typeof wasLastPromptVoice !== "undefined" ? wasLastPromptVoice : false
+              }),
             });
             const data = await res.json();
             
             if (!res.ok || !data.success) {
               throw new Error(data.error || "Hiba a feldolgozás során");
+            }
+
+            if (typeof wasLastPromptVoice !== "undefined") {
+              wasLastPromptVoice = false;
             }
 
             // Ha kész van, kártya létrehozása (több számla is lehet egy promptból!)

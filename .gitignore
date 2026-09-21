@@ -27,3 +27,8 @@ Thumbs.db
 .vscode/*
 !.vscode/settings.json
 !.vscode/extensions.json
+
+# Temp/debug szkriptek (fejlesztés közben keletkező maradványok)
+fix_*.js
+script.js
+test*.js

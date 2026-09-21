@@ -1,0 +1,278 @@
+---
+// frontend/src/components/LandingView.astro
+---
+<main id="guestLandingView" class="space-y-12 py-4">
+  <!-- Hero Szekció -->
+  <section class="text-center space-y-6 pt-4 sm:pt-8">
+    <div
+      class="inline-flex items-center gap-2 bg-primary/10 text-primary border border-primary/20 rounded-full px-4 py-1 text-xs font-semibold"
+    >
+      <span>✨</span> Mesterséges Intelligencia alapú bizonylatfelismerés
+    </div>
+
+    <h2
+      class="text-3xl sm:text-5xl font-black tracking-tight leading-tight max-w-3xl mx-auto"
+    >
+      Okos Számlázás Pillanatok Alatt. <br class="hidden sm:inline" />
+      <span
+        class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent"
+      >
+        Fotózz, írj egy mondatot, és kész.
+      </span>
+    </h2>
+
+    <p
+      class="text-sm sm:text-base text-base-content/70 max-w-2xl mx-auto leading-relaxed"
+    >
+      Csak írd le kinek akarsz számlázni, vagy fotózd le a gyűrött blokkokat, és az okos rendszerünk mindent kitölt helyetted. Állítsd ki a számlát azonnal az összekötött számlázóprogramodban, vagy küldd el a költségeket Excelben a könyvelődnek!
+    </p>
+
+    <div
+      class="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2"
+    >
+      <button
+        type="button"
+        class="btn btn-primary btn-md w-full sm:w-auto shadow-lg text-base hero-register-cta"
+      >
+        🚀 15 Ingyenes kredit azonnal
+      </button>
+      <a
+        href="#howItWorks"
+        class="btn btn-ghost btn-md w-full sm:w-auto text-sm"
+      >
+        Hogyan működik? ↓
+      </a>
+    </div>
+
+    <!-- Értékelés / Bizalmi indikátor -->
+    <div
+      class="flex flex-wrap items-center justify-center gap-6 text-xs text-base-content/60 pt-4"
+    >
+      <span class="flex items-center gap-1"
+        >✓ Magyar és külföldi számlák</span
+      >
+      <span class="flex items-center gap-1">✓ 99.4% AI pontosság</span>
+      <span class="flex items-center gap-1"
+        >✓ 0 Ft havidíj (Pay-as-you-go)</span
+      >
+    </div>
+  </section>
+
+  <!-- Interaktív Előnézet Kártya (Illusztráció) -->
+  <section
+    class="card bg-base-100 border border-base-200 shadow-2xl p-4 sm:p-6"
+  >
+    <div class="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
+      <div
+        class="md:col-span-5 bg-base-200/60 rounded-2xl p-4 border border-base-300 flex flex-col items-center justify-center text-center space-y-3 min-h-[220px]"
+      >
+        <div
+          class="w-16 h-20 bg-base-100 border border-base-300 rounded-lg shadow-sm flex flex-col p-2 space-y-1 rotate-[-3deg]"
+        >
+          <div class="w-full h-2 bg-primary/30 rounded"></div>
+          <div class="w-3/4 h-1.5 bg-base-300 rounded"></div>
+          <div class="w-1/2 h-1.5 bg-base-300 rounded"></div>
+          <div class="w-full h-4 bg-base-200 rounded mt-auto"></div>
+        </div>
+        <p class="text-xs font-semibold text-base-content/80">
+          AI Szöveg / Fotó / Feltöltött fájl / Kép URL
+        </p>
+        <span class="badge badge-sm badge-outline"
+          >Bármilyen bemeneti formátum</span
+        >
+      </div>
+
+      <div class="md:col-span-2 flex justify-center">
+        <div
+          class="badge badge-primary badge-lg py-3 px-4 font-bold shadow-md"
+        >
+          AI Feldolgozás ➔
+        </div>
+      </div>
+
+      <div
+        class="md:col-span-5 bg-base-200/40 rounded-2xl p-4 border border-base-300 space-y-2 text-xs"
+      >
+        <div
+          class="flex justify-between items-center border-b border-base-300 pb-2"
+        >
+          <span class="font-bold text-primary">Strukturált Adatok</span>
+          <span class="badge badge-success badge-xs shrink-0 whitespace-nowrap font-semibold">✓ Valid</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/60">Partner:</span>
+          <b class="truncate">Google Cloud EMEA Ltd.</b>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/60">Számlaszám:</span>
+          <span class="font-mono">INV-2026-9812</span>
+        </div>
+        <div class="flex justify-between">
+          <span class="text-base-content/60">Nettó / ÁFA:</span>
+          <span>100.00 EUR / 27.00 EUR</span>
+        </div>
+        <div
+          class="flex justify-between font-bold text-success pt-1 border-t border-base-300"
+        >
+          <span>Bruttó végösszeg:</span>
+          <span>127.00 EUR</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3 Lépéses folyamat szekció -->
+  <section id="howItWorks" class="space-y-6 pt-4">
+    <div class="text-center space-y-2">
+      <h3 class="text-2xl font-bold tracking-tight">
+        Hogyan működik 3 egyszerű lépésben?
+      </h3>
+      <p class="text-xs sm:text-sm text-base-content/60">
+        Nem kell appot telepítened, böngészőből és mobilról is azonnal
+        elérhető.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div
+        class="card bg-base-100 border border-base-200 p-5 space-y-3 shadow-md"
+      >
+        <div
+          class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg"
+        >
+          1
+        </div>
+        <h4 class="font-bold text-sm">Fotózz, tölts fel, vagy írj!</h4>
+        <p class="text-xs text-base-content/70 leading-relaxed">
+          Fotózd le a blokkot a mobiloddal, tölts fel egy PDF-et, másolj be egy kép linkjét, vagy csak írd le saját szavaiddal, kinek állítanál ki számlát!
+        </p>
+      </div>
+
+      <div
+        class="card bg-base-100 border border-base-200 p-5 space-y-3 shadow-md"
+      >
+        <div
+          class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg"
+        >
+          2
+        </div>
+        <h4 class="font-bold text-sm">A rendszer mindent előkészít</h4>
+        <p class="text-xs text-base-content/70 leading-relaxed">
+          Az okos programunk pillanatok alatt kiolvassa az adatokat a képekről, vagy a mondataid alapján kitölti a számla mezőit. Neked már csak át kell nézned!
+        </p>
+      </div>
+
+      <div
+        class="card bg-base-100 border border-base-200 p-5 space-y-3 shadow-md"
+      >
+        <div
+          class="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center font-black text-lg"
+        >
+          3
+        </div>
+        <h4 class="font-bold text-sm">Egy kattintás és kész</h4>
+        <p class="text-xs text-base-content/70 leading-relaxed">
+          A jóváhagyás után a számlát azonnal kiállíthatod az összekötött számlázóprogramodon keresztül! A lefotózott költségeidet pedig egy táblázatban (CSV) küldheted a könyvelődnek.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Kredit Csomagok (Árazási Előnézet) -->
+  <section class="space-y-6 pt-4">
+    <div class="text-center space-y-2">
+      <h3 class="text-2xl font-bold tracking-tight">
+        Kreditcsomagok — Havidíj nélkül
+      </h3>
+      <p class="text-xs sm:text-sm text-base-content/60">
+        Csak azért fizetsz, amit ténylegesen feldolgozol. A kreditek sosem
+        járnak le.
+      </p>
+    </div>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <!-- Kezdő -->
+      <div
+        class="card bg-base-100 border border-base-300 p-5 flex flex-col justify-between hover:border-primary transition-all"
+      >
+        <div>
+          <h4 class="font-bold text-sm">Kezdő</h4>
+          <div class="text-2xl font-black my-2 text-primary">
+            50 <span class="text-xs font-normal text-base-content/60"
+              >kredit</span>
+          </div>
+          <p class="text-sm font-semibold">2 990 Ft</p>
+          <p class="text-[11px] text-base-content/50">~60 Ft / számla</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline btn-primary btn-sm w-full mt-6 hero-register-cta"
+          >Kipróbálom</button
+        >
+      </div>
+
+      <!-- Pro -->
+      <div
+        class="card bg-primary/5 border-2 border-primary p-5 flex flex-col justify-between relative shadow-xl"
+      >
+        <span
+          class="badge badge-primary badge-xs absolute -top-2.5 right-4 font-semibold"
+          >Legnépszerűbb</span
+        >
+        <div>
+          <h4 class="font-bold text-sm">Pro</h4>
+          <div class="text-2xl font-black my-2 text-primary">
+            150 <span class="text-xs font-normal text-base-content/60"
+              >kredit</span>
+          </div>
+          <p class="text-sm font-semibold">6 990 Ft</p>
+          <p class="text-[11px] text-base-content/50">~46 Ft / számla</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm w-full mt-6 hero-register-cta"
+          >Választom</button
+        >
+      </div>
+
+      <!-- Üzleti -->
+      <div
+        class="card bg-base-100 border border-base-300 p-5 flex flex-col justify-between hover:border-primary transition-all"
+      >
+        <div>
+          <h4 class="font-bold text-sm">Üzleti</h4>
+          <div class="text-2xl font-black my-2 text-primary">
+            500 <span class="text-xs font-normal text-base-content/60"
+              >kredit</span>
+          </div>
+          <p class="text-sm font-semibold">17 990 Ft</p>
+          <p class="text-[11px] text-base-content/50">~36 Ft / számla</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline btn-primary btn-sm w-full mt-6 hero-register-cta"
+          >Választom</button
+        >
+      </div>
+    </div>
+  </section>
+
+  <!-- Alsó CTA Sáv -->
+  <section
+    class="card bg-gradient-to-r from-primary/20 via-base-100 to-primary/10 border border-primary/30 p-6 text-center space-y-4 shadow-xl"
+  >
+    <h3 class="text-xl sm:text-2xl font-bold">
+      Készen állsz az automatizálásra?
+    </h3>
+    <p class="text-xs sm:text-sm text-base-content/70 max-w-xl mx-auto">
+      Regisztrálj másodpercek alatt bankkártya megadása nélkül, és kapsz
+      15 ingyenes kreditet a teszteléshez.
+    </p>
+    <button
+      type="button"
+      class="btn btn-primary btn-md shadow-md hero-register-cta"
+    >
+      Ingyenes fiók létrehozása
+    </button>
+  </section>
+</main>

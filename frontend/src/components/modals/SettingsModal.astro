@@ -1,0 +1,82 @@
+---
+// frontend/src/components/modals/SettingsModal.astro
+---
+<!-- BEÁLLÍTÁSOK MODAL -->
+<dialog id="settingsModal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box p-6 bg-base-100">
+    <div class="flex justify-between items-center border-b border-base-200 pb-3 mb-4">
+      <h3 class="font-bold text-lg text-primary">⚙️ Integrációk és Beállítások</h3>
+      <form method="dialog">
+        <button class="btn btn-sm btn-circle btn-ghost">✕</button>
+      </form>
+    </div>
+
+    <form id="settingsForm" class="space-y-4">
+      <div class="space-y-2">
+        <h4 class="font-bold text-sm">1. Számlázz.hu E-számla készítése</h4>
+        <p class="text-xs text-base-content/70">Ha szeretnél automatikusan e-számlát kiállítani az AI által generált, vagy a fotózott bizonylatok adataiból, add meg a Számla Agent API kulcsodat.</p>
+        <input
+          type="text"
+          id="set_szamlazz_hu_api_key"
+          class="input input-sm input-bordered w-full"
+          placeholder="Számlázz.hu API kulcs"
+        />
+      </div>
+
+      <div class="divider my-1"></div>
+
+      <div class="space-y-2">
+        <h4 class="font-bold text-sm">2. NAV Online Számla bekötése</h4>
+        <p class="text-xs text-base-content/70">Kézi papírszámlák (számlatömb) közvetlen NAV beküldéséhez add meg a technikai felhasználó adatait.</p>
+        <input type="text" id="set_nav_technical_user" class="input input-sm input-bordered w-full mb-1" placeholder="Technikai felhasználónév" />
+        <input type="password" id="set_nav_technical_password" class="input input-sm input-bordered w-full mb-1" placeholder="Technikai jelszó" />
+        <input type="text" id="set_nav_sign_key" class="input input-sm input-bordered w-full mb-1" placeholder="XML Aláírókulcs" />
+        <input type="text" id="set_nav_exchange_key" class="input input-sm input-bordered w-full" placeholder="XML Cserekulcs" />
+      </div>
+
+      <div id="settingsErrorAlert" class="hidden alert alert-error text-xs p-2 rounded-lg mt-3"></div>
+
+      <div class="modal-action mt-4">
+        <button type="submit" id="settingsSubmitBtn" class="btn btn-primary btn-sm w-full">Mentés</button>
+      </div>
+    </form>
+
+    <div class="divider my-4">Veszélyzóna</div>
+    <div class="space-y-2 text-center">
+      <p class="text-xs text-base-content/70">A fiók törlésével minden adatod, feltöltött számlád és kredited véglegesen törlődik. A művelet nem visszavonható!</p>
+      <button type="button" id="deleteAccountBtn" class="btn btn-error btn-outline btn-sm w-full">Fiók végleges törlése (GDPR)</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- DELETE ACCOUNT CONFIRM MODAL -->
+<dialog id="deleteAccountConfirmModal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box bg-base-100">
+    <h3 class="font-bold text-lg text-error">Fiók végleges törlése</h3>
+    <p class="py-4 text-sm text-base-content/80">
+      Biztos vagy benne? A fiókod, minden beállításod és feltöltött számlád <b>véglegesen</b> törlődik. Ezt a műveletet <b>nem lehet visszavonni</b>!
+    </p>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-sm btn-ghost">Mégsem</button>
+      </form>
+      <button type="button" id="confirmDeleteAccountBtn" class="btn btn-sm btn-error">Igen, törlöm a fiókom</button>
+    </div>
+  </div>
+</dialog>
+
+<!-- DELETE INVOICE CONFIRM MODAL -->
+<dialog id="deleteInvoiceConfirmModal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box bg-base-100">
+    <h3 class="font-bold text-lg text-error">Számla törlése</h3>
+    <p class="py-4 text-sm text-base-content/80">
+      Biztosan törölni szeretnéd ezt a számlát? A módosítás <b>nem visszavonható</b>!
+    </p>
+    <div class="modal-action">
+      <form method="dialog">
+        <button class="btn btn-sm btn-ghost">Mégsem</button>
+      </form>
+      <button type="button" id="confirmDeleteInvoiceBtn" class="btn btn-sm btn-error">Igen, törlöm</button>
+    </div>
+  </div>
+</dialog>

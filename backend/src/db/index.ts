@@ -31,6 +31,8 @@ export async function initDatabase() {
         nav_technical_password TEXT,
         nav_sign_key TEXT,
         nav_exchange_key TEXT,
+        reset_token TEXT,
+        reset_token_expiry TIMESTAMP,
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
@@ -42,7 +44,8 @@ export async function initDatabase() {
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_technical_password TEXT;`;
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_sign_key TEXT;`;
     await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS nav_exchange_key TEXT;`;
-
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token TEXT;`;
+    await client`ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expiry TIMESTAMP;`;
 
     // 2. Invoices tábla létrehozása (user_id hivatkozással)
     await client`
@@ -53,12 +56,40 @@ export async function initDatabase() {
         source TEXT,
         data JSONB NOT NULL,
         is_valid BOOLEAN NOT NULL DEFAULT true,
+        is_deleted BOOLEAN NOT NULL DEFAULT false,
         status TEXT NOT NULL DEFAULT 'processed',
         created_at TIMESTAMP NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMP NOT NULL DEFAULT NOW()
       );
     `;
-    console.log('✅ [PostgreSQL] Users és Invoices táblák ellenőrizve / inicializálva.');
+
+    // Hiányzó oszlop hozzáadása a meglévő invoices táblához
+    await client`ALTER TABLE invoices ADD COLUMN IF NOT EXISTS is_deleted BOOLEAN NOT NULL DEFAULT false;`;
+
+    // 3. Audit logs tábla létrehozása
+    await client`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY,
+        user_id TEXT REFERENCES users(id),
+        action TEXT NOT NULL,
+        details JSONB,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `;
+
+    // 4. Payments tábla létrehozása (Stripe idempotency)
+    await client`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        stripe_session_id TEXT NOT NULL UNIQUE,
+        credits_added INTEGER NOT NULL,
+        package_id TEXT,
+        created_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `;
+
+    console.log('✅ [PostgreSQL] Összes tábla ellenőrizve / inicializálva (users, invoices, audit_logs, payments).');
   } catch (err: any) {
     console.error('❌ [PostgreSQL] Adatbázis inicializálási hiba:', err.message);
   }

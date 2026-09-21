@@ -7,7 +7,17 @@ import { eq } from 'drizzle-orm';
 import { db } from './db/index.js';
 import { users } from './db/schema.js';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'szamla-ai-secret-key-change-in-prod-2026';
+let _jwtSecret: string | null = null;
+function getJwtSecret(): string {
+  if (!_jwtSecret) {
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      throw new Error('KRITIKUS HIBA: JWT_SECRET környezeti változó nincs beállítva! Az alkalmazás nem indulhat el nélküle.');
+    }
+    _jwtSecret = secret;
+  }
+  return _jwtSecret;
+}
 
 const AuthSchema = z.object({
   email: z.string().email('Érvénytelen e-mail cím formátum.'),
@@ -45,7 +55,7 @@ authRouter.post('/register', async (c) => {
       return c.json({ success: false, error: 'Nem sikerült létrehozni a felhasználót.' }, 500);
     }
 
-    const token = await sign({ id: newUser.id, email: newUser.email }, JWT_SECRET, 'HS256');
+    const token = await sign({ id: newUser.id, email: newUser.email, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, getJwtSecret(), 'HS256');
 
     return c.json({
       success: true,
@@ -85,7 +95,7 @@ authRouter.post('/login', async (c) => {
       return c.json({ success: false, error: 'Hibás e-mail cím vagy jelszó.' }, 401);
     }
 
-    const token = await sign({ id: user.id, email: user.email }, JWT_SECRET, 'HS256');
+    const token = await sign({ id: user.id, email: user.email, exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 7 }, getJwtSecret(), 'HS256');
 
     return c.json({
       success: true,
@@ -111,7 +121,7 @@ authRouter.get('/me', async (c) => {
 
   try {
     const token = authHeader.split(' ')[1] || '';
-    const payload = (await verify(token, JWT_SECRET, 'HS256')) as { id: string; email: string };
+    const payload = (await verify(token, getJwtSecret(), 'HS256')) as { id: string; email: string };
     
     if (!payload?.id) {
       return c.json({ success: false, error: 'Érvénytelen munkamenet.' }, 401);
@@ -247,7 +257,7 @@ export async function getAuthUser(authHeader?: string) {
   if (!authHeader || !authHeader.startsWith('Bearer ')) return null;
   try {
     const token = authHeader.split(' ')[1] || '';
-    const payload = (await verify(token, JWT_SECRET, 'HS256')) as { id: string; email: string };
+    const payload = (await verify(token, getJwtSecret(), 'HS256')) as { id: string; email: string };
     if (!payload?.id) return null;
 
     const existingUsers = await db.select().from(users).where(eq(users.id, payload.id)).limit(1);

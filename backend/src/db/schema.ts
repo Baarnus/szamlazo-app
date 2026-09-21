@@ -40,6 +40,16 @@ export const auditLogs = pgTable('audit_logs', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 });
 
+export const payments = pgTable('payments', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id).notNull(),
+  stripeSessionId: text('stripe_session_id').notNull().unique(),
+  creditsAdded: integer('credits_added').notNull(),
+  packageId: text('package_id'),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
 export type UserRecord = typeof users.$inferSelect;
 export type InvoiceRecord = typeof invoices.$inferSelect;
 export type AuditLogRecord = typeof auditLogs.$inferSelect;
+export type PaymentRecord = typeof payments.$inferSelect;

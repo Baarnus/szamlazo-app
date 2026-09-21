@@ -1,0 +1,88 @@
+---
+// frontend/src/components/modals/BillingModal.astro
+---
+<dialog id="billingModal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box max-w-2xl bg-base-100 p-6">
+    <div
+      class="flex justify-between items-center border-b border-base-200 pb-3 mb-4"
+    >
+      <h3 class="font-bold text-lg text-primary flex items-center gap-2">
+        ⚡ Kreditek feltöltése
+      </h3>
+      <form method="dialog">
+        <button class="btn btn-sm btn-circle btn-ghost">✕</button>
+      </form>
+    </div>
+
+    <p class="text-xs text-base-content/70 mb-5">
+      Válassz kreditcsomagot. A kreditek nem járnak le, és azonnal
+      felhasználhatók a számlák feldolgozására.
+    </p>
+
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <!-- Kezdő -->
+      <div
+        class="border border-base-300 rounded-2xl p-4 flex flex-col justify-between hover:border-primary transition-all bg-base-200/30"
+      >
+        <div>
+          <h4 class="font-bold text-sm">Kezdő</h4>
+          <div class="text-2xl font-black my-2 text-primary">
+            50 <span class="text-xs font-normal text-base-content/60"
+              >kredit</span>
+          </div>
+          <p class="text-xs font-semibold">2 990 Ft</p>
+          <p class="text-[11px] text-base-content/50">~60 Ft / db</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline btn-primary btn-sm w-full mt-4 buy-pkg-btn"
+          data-pkg="starter">Vásárlás</button
+        >
+      </div>
+
+      <!-- Pro -->
+      <div
+        class="border-2 border-primary bg-primary/5 rounded-2xl p-4 flex flex-col justify-between relative shadow-lg"
+      >
+        <span
+          class="badge badge-primary badge-xs absolute -top-2.5 right-3 font-semibold"
+          >Népszerű</span
+        >
+        <div>
+          <h4 class="font-bold text-sm">Pro</h4>
+          <div class="text-2xl font-black my-2 text-primary">
+            150 <span class="text-xs font-normal text-base-content/60"
+              >kredit</span>
+          </div>
+          <p class="text-xs font-semibold">6 990 Ft</p>
+          <p class="text-[11px] text-base-content/50">~46 Ft / db</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary btn-sm w-full mt-4 buy-pkg-btn"
+          data-pkg="pro">Vásárlás</button
+        >
+      </div>
+
+      <!-- Üzleti -->
+      <div
+        class="border border-base-300 rounded-2xl p-4 flex flex-col justify-between hover:border-primary transition-all bg-base-200/30"
+      >
+        <div>
+          <h4 class="font-bold text-sm">Üzleti</h4>
+          <div class="text-2xl font-black my-2 text-primary">
+            500 <span class="text-xs font-normal text-base-content/60"
+              >kredit</span>
+          </div>
+          <p class="text-xs font-semibold">17 990 Ft</p>
+          <p class="text-[11px] text-base-content/50">~36 Ft / db</p>
+        </div>
+        <button
+          type="button"
+          class="btn btn-outline btn-primary btn-sm w-full mt-4 buy-pkg-btn"
+          data-pkg="business">Vásárlás</button
+        >
+      </div>
+    </div>
+  </div>
+</dialog>

@@ -14,20 +14,20 @@ export interface InvoiceItem {
   egysegar: number;
   afa_szazalek: number;
   netto_ar: number;
-  afa_ertek?: number;
+  afa_ertek?: number | null;
   brutto_ar: number;
 }
 
 export interface InvoiceData {
-  kiallito_neve?: string;
-  kiallito_adoszam?: string;
-  kiallito_orszag?: string;
-  vevo_neve?: string;
-  vevo_adoszam?: string;
-  szamlaszam?: string;
-  kelt_datum?: string;
-  teljesites_datum?: string;
-  fizetesi_hatarido?: string;
+  kiallito_neve?: string | null;
+  kiallito_adoszam?: string | null;
+  kiallito_orszag?: string | null;
+  vevo_neve?: string | null;
+  vevo_adoszam?: string | null;
+  szamlaszam?: string | null;
+  kelt_datum?: string | null;
+  teljesites_datum?: string | null;
+  fizetesi_hatarido?: string | null;
   penznem: CurrencyCode;
   tetelek: InvoiceItem[];
   vegosszeg_netto: number;

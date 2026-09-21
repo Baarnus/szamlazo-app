@@ -1,4 +1,4 @@
-﻿{
+{
     "name":  "backend",
     "version":  "1.0.0",
     "description":  "",
@@ -6,6 +6,7 @@
     "scripts":  {
                     "dev":  "tsx watch src/index.ts",
                     "build":  "tsc",
+                    "typecheck": "tsc --noEmit",
                     "start":  "node dist/index.js",
                     "db:push":  "drizzle-kit push",
                     "db:studio":  "drizzle-kit studio",

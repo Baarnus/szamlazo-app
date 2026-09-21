@@ -1,0 +1,359 @@
+---
+// frontend/src/components/modals/SplitViewModal.astro
+import { SUPPORTED_CURRENCIES } from "../../../../shared/types";
+---
+<!-- SPLIT VIEW & SZERKESZTŐ MODAL -->
+<dialog id="editModal" class="modal modal-bottom sm:modal-middle">
+  <div
+    class="modal-box w-full sm:w-11/12 max-w-7xl h-[100dvh] sm:h-auto sm:max-h-[92vh] flex flex-col p-3 sm:p-5 md:p-6 bg-base-100 rounded-none sm:rounded-2xl max-w-full sm:max-w-7xl m-0 sm:m-auto"
+  >
+    <!-- MODAL HEADER -->
+    <div
+      class="flex justify-between items-center border-b border-base-200 pb-2.5 sm:pb-3 shrink-0 gap-2"
+    >
+      <div class="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
+        <h3 class="font-bold text-base sm:text-lg text-primary truncate" id="modalTitle">
+          Számla Ellenőrzése és Módosítása
+        </h3>
+        <span id="modalValidBadge" class="badge badge-success badge-sm sm:badge-md shrink-0 whitespace-nowrap font-semibold">✓ Valid</span>
+      </div>
+      <form method="dialog" class="shrink-0">
+        <button class="btn btn-sm btn-circle btn-ghost" aria-label="Bezárás">✕</button>
+      </form>
+    </div>
+
+    <!-- MOBILE VIEW SWITCHER TABS (Visible only on < lg) -->
+    <div class="flex lg:hidden bg-base-200 p-1 rounded-xl gap-1 my-2 shrink-0 border border-base-300">
+      <button
+        type="button"
+        id="splitTabForm"
+        class="flex-1 btn btn-sm btn-primary rounded-lg text-xs font-semibold shadow-sm transition-all flex items-center justify-center gap-1.5"
+      >
+        <span>📝</span>
+        <span>Adatok & Tételek</span>
+      </button>
+      <button
+        type="button"
+        id="splitTabPreview"
+        class="flex-1 btn btn-sm btn-ghost rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-1.5"
+      >
+        <span id="splitTabPreviewIcon">📷</span>
+        <span id="splitTabPreviewLabel">Bizonylat / Prompt</span>
+      </button>
+    </div>
+
+    <!-- MAIN MODAL BODY (Split View on desktop, tabbed on mobile) -->
+    <div
+      class="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-6 my-1 sm:my-3 flex-1 overflow-hidden min-h-0"
+    >
+      <!-- PREVIEW COLUMN (Left on desktop, Tab 2 on mobile) -->
+      <div
+        id="modalPreviewCol"
+        class="hidden lg:flex lg:col-span-5 bg-base-200 rounded-xl p-2.5 flex-col items-center justify-start overflow-hidden h-full lg:max-h-[68vh] border border-base-300"
+      >
+        <div
+          class="w-full flex justify-between items-center px-2 py-1 mb-1.5 shrink-0"
+        >
+          <span id="modalImageLabel" class="text-xs text-base-content/70 font-semibold"
+            >Eredeti számlakép</span
+          >
+          <a
+            id="modalImageLink"
+            target="_blank"
+            class="text-xs text-primary hover:underline font-medium flex items-center gap-1"
+          >
+            <span>Megnyitás új lapon</span>
+            <span>↗</span>
+          </a>
+        </div>
+        
+        <div class="w-full flex-1 overflow-auto flex flex-col items-center justify-start rounded-lg bg-base-300/30 p-1">
+          <img
+            id="modalImage"
+            class="max-w-full h-auto object-contain rounded shadow m-auto"
+            src=""
+            alt="Számla kép"
+          />
+          <div
+            id="modalTextPrompt"
+            class="hidden max-w-full w-full flex-1 bg-base-100 rounded-xl p-3 text-sm overflow-y-auto border border-base-300 shadow-sm"
+          ></div>
+        </div>
+
+        <!-- Quick back to form button on mobile -->
+        <button
+          type="button"
+          id="backToFormBtn"
+          class="lg:hidden btn btn-sm btn-primary w-full mt-2.5 shrink-0 font-medium shadow-sm"
+        >
+          ← Vissza az adatok és tételek szerkesztéséhez
+        </button>
+      </div>
+
+      <!-- FORM & ITEMS COLUMN (Right on desktop, Tab 1 on mobile) -->
+      <div
+        id="modalFormCol"
+        class="flex flex-col gap-3.5 flex-1 overflow-y-auto h-full lg:col-span-7 lg:max-h-[68vh] pr-0 sm:pr-1"
+      >
+        <!-- Mobile quick preview hint/button -->
+        <button
+          type="button"
+          id="quickViewDocBtn"
+          class="lg:hidden flex items-center justify-between p-2 rounded-xl bg-primary/10 hover:bg-primary/20 border border-primary/20 text-primary text-xs font-medium transition-all cursor-pointer shrink-0"
+        >
+          <div class="flex items-center gap-1.5">
+            <span id="quickViewDocIcon">📷</span>
+            <span id="quickViewDocLabel">Eredeti számlakép / prompt megtekintése</span>
+          </div>
+          <span class="text-[11px] font-bold">Megnyitás →</span>
+        </button>
+
+        <!-- FEJLÉC ADATOK -->
+        <div
+          class="bg-base-200/60 p-3 sm:p-3.5 rounded-xl border border-base-300/70 space-y-2.5 shrink-0"
+        >
+          <h4
+            class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-1.5"
+          >
+            <span>📋</span> Fejléc Adatok
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 text-xs">
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Kiállító Neve</label
+              >
+              <input
+                type="text"
+                id="edit_kiallito_neve"
+                class="input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Kiállító Adószáma</label
+              >
+              <input
+                type="text"
+                id="edit_kiallito_adoszam"
+                class="input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Számlaszám</label
+              >
+              <input
+                type="text"
+                id="edit_szamlaszam"
+                class="input input-sm input-bordered w-full font-mono font-bold"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Vevő Neve</label
+              >
+              <input
+                type="text"
+                id="edit_vevo_neve"
+                class="input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Kelt Dátum</label
+              >
+              <input
+                type="date"
+                id="edit_kelt_datum"
+                class="input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Fizetési Határidő</label
+              >
+              <input
+                type="date"
+                id="edit_fizetesi_hatarido"
+                class="input input-sm input-bordered w-full"
+              />
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Pénznem (ISO)</label
+              >
+              <select
+                id="edit_penznem"
+                class="select select-sm select-bordered w-full font-bold"
+              >
+                {
+                  SUPPORTED_CURRENCIES.map((curr) => (
+                    <option value={curr.code}>
+                      {curr.code} ({curr.symbol})
+                    </option>
+                  ))
+                }
+              </select>
+            </div>
+            <div>
+              <label class="label label-text text-[11px] font-semibold text-base-content/70 p-0 mb-1"
+                >Ország</label
+              >
+              <input
+                type="text"
+                id="edit_orszag"
+                class="input input-sm input-bordered w-full uppercase"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- TÉTELSOROK -->
+        <div class="space-y-2">
+          <div class="flex justify-between items-center">
+            <h4
+              class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-1.5"
+            >
+              <span>📦</span> Tételsorok
+            </h4>
+            <button
+              type="button"
+              id="addItemBtn"
+              class="btn btn-xs sm:btn-sm btn-outline btn-primary gap-1"
+            >
+              <span>+</span> Új tétel
+            </button>
+          </div>
+
+          <div class="overflow-x-auto rounded-xl border border-base-200 sm:border-base-300">
+            <table class="table table-xs w-full" id="editItemsTable">
+              <thead class="bg-base-200 hidden sm:table-header-group">
+                <tr>
+                  <th class="w-2/5">Megnevezés</th>
+                  <th class="w-14 text-right">Menny.</th>
+                  <th class="w-24 text-right">Egységár</th>
+                  <th class="w-16 text-right">Áfa %</th>
+                  <th class="w-24 text-right">Nettó</th>
+                  <th class="w-20 text-right">Áfa érték</th>
+                  <th class="w-24 text-right">Bruttó</th>
+                  <th class="w-8"></th>
+                </tr>
+              </thead>
+              <tbody id="editItemsTbody"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- ÖSSZESÍTŐ SÁV -->
+        <div
+          class="bg-base-200/80 p-3 rounded-xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border border-base-300 shrink-0 mt-auto"
+        >
+          <div class="text-xs space-y-1 w-full sm:w-auto flex justify-between sm:block">
+            <div>Nettó összesen: <b id="displayNetto" class="font-mono font-bold">0</b></div>
+            <div>Áfa összesen: <b id="displayAfa" class="font-mono font-bold">0</b></div>
+          </div>
+          <div class="text-right w-full sm:w-auto flex justify-between sm:block border-t sm:border-0 border-base-300 pt-1.5 sm:pt-0">
+            <span class="text-xs text-base-content/70">Fizetendő Bruttó:</span>
+            <span class="text-lg sm:text-xl font-bold text-success font-mono" id="displayBrutto"
+              >0</span
+            >
+          </div>
+        </div>
+
+        <!-- WARNING BOX -->
+        <div
+          id="modalWarningBox"
+          class="hidden alert alert-warning text-xs p-2.5 rounded-xl shrink-0 shadow-sm"
+        >
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL FOOTER & ACTIONS (Sticky at bottom on mobile) -->
+    <div class="modal-action border-t border-base-200 pt-2.5 sm:pt-3 flex flex-col gap-2.5 shrink-0 bg-base-100 mt-auto">
+      <label class="label cursor-pointer justify-start items-start gap-2.5 p-0 text-left" title="A gomb aktiválásához el kell fogadnod a felelősséget.">
+        <input type="checkbox" id="legalLiabilityCheckbox" class="checkbox checkbox-sm checkbox-secondary shrink-0 mt-0.5" />
+        <span class="label-text text-[11px] leading-tight text-base-content/80">Kijelentem, hogy az adatok a valóságnak megfelelnek, a számlakibocsátás jogi felelőssége kizárólag engem terhel.</span>
+      </label>
+      
+      <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 w-full">
+        <button type="button" id="cancelModalBtn" class="btn btn-sm btn-ghost order-3 sm:order-1">Mégse</button>
+        <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto order-1 sm:order-2">
+          <button
+            type="button"
+            id="issueSzamlazzHuBtn"
+            class="btn btn-sm btn-secondary w-full sm:w-auto font-semibold shadow-sm"
+            disabled
+          >
+            🧾 E-számla Kiállítása
+          </button>
+          <button
+            type="button"
+            id="saveChangesBtn"
+            class="btn btn-sm btn-primary w-full sm:w-auto font-semibold shadow-sm"
+          >
+            Mentés
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<style is:global>
+  /* Split View Desktop override */
+  @media (min-width: 1024px) {
+    #modalPreviewCol,
+    #modalFormCol {
+      display: flex !important;
+    }
+  }
+
+  /* Responsive Item Table to Cards on mobile (< 640px) */
+  @media (max-width: 639px) {
+    #editItemsTable {
+      display: block !important;
+      width: 100% !important;
+    }
+    #editItemsTable thead {
+      display: none !important;
+    }
+    #editItemsTable tbody {
+      display: flex !important;
+      flex-direction: column !important;
+      gap: 0.75rem !important;
+      width: 100% !important;
+    }
+    #editItemsTable tr.mobile-item-card {
+      display: grid !important;
+      grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+      gap: 0.5rem !important;
+      padding: 0.75rem !important;
+      background-color: var(--fallback-b1, oklch(var(--b1))) !important;
+      border: 1px solid var(--fallback-b3, oklch(var(--b3))) !important;
+      border-radius: 0.875rem !important;
+      box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.07) !important;
+    }
+    #editItemsTable tr.mobile-item-card > td:first-child {
+      grid-column: 1 / -1 !important;
+    }
+    #editItemsTable tr.mobile-item-card > td:nth-child(5),
+    #editItemsTable tr.mobile-item-card > td:nth-child(6),
+    #editItemsTable tr.mobile-item-card > td:nth-child(7) {
+      background-color: var(--fallback-b2, oklch(var(--b2) / 0.5)) !important;
+      border: 1px solid var(--fallback-b3, oklch(var(--b3) / 0.7)) !important;
+      border-radius: 0.5rem !important;
+      padding: 0.4rem 0.5rem !important;
+    }
+  }
+
+  /* Ensure badge elements never squish or overflow text */
+  .badge {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+  #modalValidBadge {
+    white-space: nowrap !important;
+    flex-shrink: 0 !important;
+  }
+</style>

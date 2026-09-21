@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import Stripe from 'stripe';
 import { eq, sql } from 'drizzle-orm';
 import { db } from './db/index.js';
-import { users } from './db/schema.js';
+import { users, payments } from './db/schema.js';
 import { getAuthUser } from './auth.js';
 
 export const billingRouter = new Hono();
@@ -28,6 +28,56 @@ export const CREDIT_PACKAGES: Record<string, { name: string; credits: number; pr
     priceHuf: 17990,
   },
 };
+
+// ============================================
+// Idempotens kredit jóváírás
+// ============================================
+// Mindkét útvonal (verify-session és webhook) ezt hívja.
+// A payments tábla unique constraint-je biztosítja, hogy egy session_id-re
+// csak egyszer történjen jóváírás, még ha mindkét útvonal lefut is.
+async function grantCreditsOnce(
+  userId: string,
+  stripeSessionId: string,
+  creditsToAdd: number,
+  packageId?: string
+): Promise<{ alreadyProcessed: boolean; newCredits?: number | undefined }> {
+  // 1. Ellenőrizzük, hogy ez a session már feldolgozásra került-e
+  const existing = await db.select()
+    .from(payments)
+    .where(eq(payments.stripeSessionId, stripeSessionId))
+    .limit(1);
+
+  if (existing.length > 0) {
+    return { alreadyProcessed: true };
+  }
+
+  // 2. Rögzítjük a fizetést (unique constraint véd a race condition ellen)
+  try {
+    await db.insert(payments).values({
+      userId,
+      stripeSessionId,
+      creditsAdded: creditsToAdd,
+      packageId: packageId || null,
+    });
+  } catch (err: any) {
+    // Unique constraint violation = már feldolgozva (race condition)
+    if (err.code === '23505' || err.message?.includes('unique') || err.message?.includes('duplicate')) {
+      return { alreadyProcessed: true };
+    }
+    throw err;
+  }
+
+  // 3. Kreditek jóváírása
+  const [updatedUser] = await db.update(users)
+    .set({
+      monthlyCredits: sql`${users.monthlyCredits} + ${creditsToAdd}`,
+      updatedAt: new Date(),
+    })
+    .where(eq(users.id, userId))
+    .returning({ monthlyCredits: users.monthlyCredits });
+
+  return { alreadyProcessed: false, newCredits: updatedUser?.monthlyCredits };
+}
 
 // Checkout Session generálása
 billingRouter.post('/create-checkout-session', async (c) => {
@@ -101,20 +151,22 @@ billingRouter.post('/verify-session', async (c) => {
       const creditsToAdd = Number(session.metadata?.creditsToAdd || 0);
 
       if (creditsToAdd > 0) {
-        await db.update(users)
-          .set({
-            monthlyCredits: sql`${users.monthlyCredits} + ${creditsToAdd}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(users.id, user.id));
+        const result = await grantCreditsOnce(user.id, sessionId, creditsToAdd, session.metadata?.packageId);
+
+        if (result.alreadyProcessed) {
+          // Már feldolgozva — visszaadjuk az aktuális kredit egyenleget
+          const [currentUser] = await db.select().from(users).where(eq(users.id, user.id));
+          return c.json({
+            success: true,
+            credits: currentUser?.monthlyCredits ?? 0,
+          });
+        }
+
+        return c.json({
+          success: true,
+          credits: result.newCredits ?? 0,
+        });
       }
-
-      const [updatedUser] = await db.select().from(users).where(eq(users.id, user.id));
-
-      return c.json({
-        success: true,
-        credits: updatedUser?.monthlyCredits ?? 0,
-      });
     }
 
     return c.json({ success: false, error: 'A tranzakció még nem fejeződött be sikeresen.' }, 400);
@@ -143,12 +195,7 @@ billingRouter.post('/webhook', async (c) => {
       const creditsToAdd = Number(session.metadata?.creditsToAdd || 0);
 
       if (userId && creditsToAdd > 0) {
-        await db.update(users)
-          .set({
-            monthlyCredits: sql`${users.monthlyCredits} + ${creditsToAdd}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(users.id, userId));
+        await grantCreditsOnce(userId, session.id, creditsToAdd, session.metadata?.packageId);
       }
     }
 

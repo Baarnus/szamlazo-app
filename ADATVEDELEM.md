@@ -21,10 +21,16 @@ A **[Cégnév / Egyéni Vállalkozó neve]** (székhely: [Székhely], adószám:
 * **Adatkezelés célja:** A Felhasználó utasítására számlák kiállítása a külső rendszerekben.
 * **Jogalap:** Szerződés teljesítése.
 
-**1.4. Feltöltött képek (Számlák/Blokkok) és Szöveges promptok**
-* **Kezelt adatok:** A feltöltött képfájlok (MinIO storage) és az azokból/szövegből kinyert JSON adatok. Ezek tartalmazhatják a Felhasználó partnereinek (vevőinek) adatait is. 
+**1.4. Feltöltött képek (Számlák/Blokkok), Szöveges promptok és Hangalapú bevitel**
+* **Kezelt adatok:** A feltöltött képfájlok (MinIO storage), az azokból/szövegből kinyert JSON adatok, valamint a Felhasználó által a Szoftverbe diktált (hangalapú) szöveg — amely a böngésző Web Speech API-ján keresztül szövegre alakul, és az átírt szöveges tartalom kerül az AI elemzésbe. Ezek tartalmazhatják a Felhasználó partnereinek (vevőinek) adatait is.
+* **Fontos — Mikrofon adatok:** A hangfelvétel feldolgozása **kizárólag az eszközön és a böngészőn belül** (Google Chrome/Edge/Safari Web Speech API) történik. A Szoftver szervere a nyers hangadatot nem tárolja; az egyszer szöveggé alakított tartalom ezt követően ugyanúgy kezelendő, mint a szöveges promptok.
 * **Figyelem:** Ezen adatok tekintetében a **Felhasználó minősül Adatkezelőnek**, a mi Szoftverünk csupán **Adatfeldolgozóként** (Data Processor) jár el! A Felhasználó felelőssége, hogy ügyfelei adatait jogszerűen töltse fel a rendszerbe.
 * **Adatkezelés célja:** OCR szövegfelismerés és strukturált adatok előállítása a szolgáltatás nyújtásához.
+
+**1.5. Partner Memória (Okos Címtár)**
+* **Kezelt adatok:** A Felhasználó korábbi számláiból automatikusan kinyert és tárolt egyedi partner- és ügyfélnevek (`vevo_neve`, `kiallito_neve` mezők), amelyek az intelligens autocomplete javaslatfunkcióhoz kerülnek felhasználásra.
+* **Adatkezelés célja:** A Felhasználó munkájának gyorsítása azáltal, hogy a Szoftver a korábban rögzített partnerneveket a beviteli mezőben felajánlja. Az adatot a Szoftver nem adja ki harmadik félnek, és kizárólag az adott Felhasználói fiókhoz tartozó számlaadatokból állítja elő.
+* **Jogalap:** Szerződés teljesítése (GDPR 6. cikk (1) bek. b) pont) — a funkció a Szoftver alapvető, megrendelt működésének része.
 
 ## 2. Kik az Adatfeldolgozóink? (Harmadik felek)
 A Szoftver működéséhez az alábbi megbízható technológiai partnereket használjuk, akik felé adattovábbítás történik:

@@ -1,0 +1,242 @@
+---
+// frontend/src/components/Dashboard.astro
+---
+<main id="appDashboardView" class="space-y-5 hidden">
+  <!-- Beviteli doboz Fülekkel -->
+  <div class="card bg-base-100 shadow-xl border border-base-200">
+    <div class="card-body p-4 md:p-6">
+      <div role="tablist" class="tabs tabs-boxed mb-3">
+        <a role="tab" id="tabUpload" class="tab tab-active font-medium"
+          >📸 Fotó / Fájl</a
+        >
+        <a role="tab" id="tabUrl" class="tab font-medium"
+          >🔗 Link megadása</a
+        >
+        <a role="tab" id="tabTextPrompt" class="tab font-medium"
+          >📝 Számla szövegből</a
+        >
+      </div>
+
+      <!-- 1. Fül: Fájlok feltöltése / Mobil Kamera / Drag & Drop -->
+      <div id="panelUpload" class="space-y-3">
+        <div class="block md:hidden">
+          <button
+            type="button"
+            id="cameraBtn"
+            class="btn btn-primary w-full gap-2 text-base font-semibold shadow-md py-3"
+          >
+            📸 Számla Fotózása
+          </button>
+
+          <input
+            type="file"
+            id="cameraInput"
+            accept="image/*"
+            capture="environment"
+            class="hidden"
+          />
+        </div>
+
+        <!-- Drop Zone & Fájlböngésző -->
+        <div
+          id="dropZone"
+          class="border-2 border-dashed border-base-content/20 hover:border-primary rounded-2xl p-5 text-center cursor-pointer transition-all duration-200 bg-base-200/40 hover:bg-base-200/80 flex flex-col items-center justify-center min-h-[120px] gap-1"
+        >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            class="h-8 w-8 text-primary/70 mb-1"
+            fill="none"
+            viewBox="0 0 24 24"
+            stroke="currentColor"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+            ></path>
+          </svg>
+          <p class="font-medium text-xs sm:text-sm">
+            Húzd ide a számlákat, <span class="text-primary underline"
+              >tallózd be</span
+            >, vagy nyomj <kbd class="kbd kbd-xs">Ctrl</kbd> + <kbd
+              class="kbd kbd-xs">V</kbd
+            >-t
+          </p>
+          <p class="text-[11px] text-base-content/60">
+            Maximum 10 kép kötegenként
+          </p>
+          <input
+            type="file"
+            id="fileInput"
+            accept="image/*"
+            multiple
+            class="hidden"
+          />
+        </div>
+
+        <!-- Kijelölt képek előnézete -->
+        <div id="previewContainer" class="hidden space-y-2">
+          <div class="flex justify-between items-center">
+            <span
+              class="text-xs font-semibold text-base-content/70"
+              id="fileCountBadge"
+            >
+              Kiválasztva: 0/10 kép
+            </span>
+            <button
+              type="button"
+              id="clearFilesBtn"
+              class="btn btn-ghost btn-xs text-error"
+            >
+              Összes törlése
+            </button>
+          </div>
+          <div
+            id="previewGrid"
+            class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3"
+          >
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. Fül: URL-ek megadása -->
+      <div id="panelUrl" class="hidden space-y-3">
+        <label class="block text-xs text-base-content/70">
+          Illeszd be a képek közvetlen URL-jét (soronként 1 link, max 10
+          db):
+        </label>
+        <textarea
+          id="urlInput"
+          rows="3"
+          placeholder="https://pelda.hu/szamla1.jpg&#10;https://pelda.hu/szamla2.png"
+          class="textarea textarea-bordered w-full font-mono text-xs"
+        ></textarea>
+      </div>
+
+      <!-- 3. Fül: Szöveges (AI) Prompt megadása -->
+      <div id="panelTextPrompt" class="hidden space-y-3">
+        <label class="block text-xs text-base-content/70">
+          Írd le egyszerűen, hogy kinek (vagy kiknek) és miről szeretnél számlákat generálni:
+        </label>
+        <!-- Textarea + mikrofon gomb wrapper -->
+        <div class="relative">
+          <textarea
+            id="textPromptInput"
+            rows="3"
+            placeholder="Például: Számlát szeretnék kiállítani a Kovács Kft-nek (11111111-2-41, Bp. Fő u. 1.) 50.000 Ft-ról áfamentesen fejlesztésért. Továbbá egy ugyanilyet a Kiss Kft-nek is!"
+            class="textarea textarea-bordered w-full text-sm pr-12"
+          ></textarea>
+          <!-- Mikrofon gomb -->
+          <button
+            id="voiceBtn"
+            type="button"
+            title="Kattints és diktáld be a számlát!"
+            class="absolute top-2 right-2 btn btn-circle btn-sm btn-ghost text-primary hover:bg-primary/10 transition-all"
+            aria-label="Hangos diktálás indítása"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+              <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+              <line x1="12" y1="19" x2="12" y2="23"/>
+              <line x1="8" y1="23" x2="16" y2="23"/>
+            </svg>
+          </button>
+        </div>
+        <!-- Hangdiktálás állapot sor -->
+        <div id="voiceStatus" class="hidden items-center gap-2 text-xs text-primary font-medium">
+          <span class="inline-block w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+          <span id="voiceStatusText">Figyelek…</span>
+        </div>
+        <!-- Firefox / nem támogatott böngésző figyelmeztetés -->
+        <div id="voiceNotSupported" class="hidden items-center gap-1.5 text-xs text-base-content/50">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0-11V4m0 0a7 7 0 017 7"/></svg>
+          <span>Hangos diktálás csak Chrome / Edge böngészőben elérhető.</span>
+        </div>
+        <!-- Partner autocomplete dropdown -->
+        <div id="partnerSuggestions" class="hidden card bg-base-100 shadow-lg border border-base-200 overflow-hidden z-50">
+          <ul id="partnerList" class="menu menu-sm p-1 gap-0.5"></ul>
+        </div>
+      </div>
+
+      <div class="card-actions justify-end mt-3">
+        <button
+          id="processBtn"
+          type="button"
+          class="btn btn-primary w-full md:w-auto"
+        >
+          Feldolgozás Indítása
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Globális Státusz és Export Sáv -->
+  <div
+    id="statusAlert"
+    class="hidden alert shadow-lg flex-col md:flex-row justify-between items-center gap-4"
+  >
+    <div class="flex-1 w-full space-y-1">
+      <div class="flex justify-between items-center">
+        <span id="statusMessage" class="font-medium text-sm"></span>
+        <span id="progressPercent" class="text-xs font-bold"></span>
+      </div>
+      <progress
+        id="progressBar"
+        class="progress progress-primary w-full hidden"
+        value="0"
+        max="100"></progress>
+    </div>
+    <div class="flex gap-2">
+      <button
+        id="exportCsvBtn"
+        type="button"
+        class="btn btn-sm btn-neutral gap-2 hidden"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+        </svg>
+        CSV Exportálása
+      </button>
+      <button
+        id="exportRlbBtn"
+        type="button"
+        class="btn btn-sm btn-accent gap-2 hidden"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4"></path>
+        </svg>
+        RLB-60 Könyvelő Export
+      </button>
+    </div>
+  </div>
+
+  <!-- Élő Feldolgozási Sorrend Napló Panel -->
+  <div
+    id="logBoxContainer"
+    class="hidden card bg-base-100 shadow-md border border-base-200"
+  >
+    <div class="card-body p-3">
+      <div class="flex justify-between items-center mb-1">
+        <span
+          class="text-xs font-bold uppercase tracking-wider text-base-content/70 flex items-center gap-2"
+        >
+          <span
+            class="inline-block w-2 h-2 rounded-full bg-success animate-pulse"
+          ></span>
+          Élő Feldolgozási Napló
+        </span>
+        <span class="text-[11px] text-base-content/50" id="logSpeedInfo"
+        ></span>
+      </div>
+      <div
+        id="activityLog"
+        class="space-y-1 font-mono text-xs max-h-36 overflow-y-auto bg-base-200/50 p-2 rounded-lg border border-base-300"
+      >
+      </div>
+    </div>
+  </div>
+
+  <!-- Eredmények konténere -->
+  <div id="resultsWrapper" class="space-y-5"></div>
+</main>

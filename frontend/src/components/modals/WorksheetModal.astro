@@ -1,0 +1,235 @@
+---
+// frontend/src/components/modals/WorksheetModal.astro
+// MesterMunkalap PWA szerkesztő modál: ügyféladatok, dinamikus tételek,
+// helyszíni fotók, HTML5 érintőképernyős aláírás és 1-kattintásos Számlázz.hu kiállítás.
+---
+<dialog id="worksheetModal" class="modal modal-bottom sm:modal-middle">
+  <div class="modal-box w-11/12 max-w-4xl max-h-[92vh] flex flex-col p-4 md:p-6 bg-base-100 border border-base-200 shadow-2xl rounded-2xl">
+    <!-- MODÁL FEJLÉC -->
+    <div class="flex justify-between items-center pb-3 border-b border-base-200 shrink-0">
+      <div class="flex items-center gap-2 flex-wrap">
+        <span class="text-xl">🛠️</span>
+        <h3 id="wsModalTitle" class="font-bold text-lg md:text-xl text-primary">Új Munkalap</h3>
+        <span id="wsModalStatusBadge" class="badge badge-warning text-xs">Piszkozat</span>
+      </div>
+      <button type="button" id="closeWsModalBtn" class="btn btn-sm btn-circle btn-ghost text-base-content/60 hover:text-base-content">✕</button>
+    </div>
+
+    <!-- GÖRGETHETŐ TARTALOM -->
+    <div class="overflow-y-auto flex-grow space-y-6 py-4 pr-1">
+      <!-- 1. ÜGYFÉL ADATAI (Partner autocomplete integrációval) -->
+      <div class="bg-base-200/40 p-4 rounded-xl border border-base-300 space-y-3">
+        <div class="flex items-center justify-between">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-primary">Megrendelő (Ügyfél) Adatai</h4>
+          <span class="text-[10px] text-base-content/50">Cég vagy magánszemély</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <!-- Ügyfél neve (Autocomplete) -->
+          <div class="relative">
+            <label class="label p-0 pb-1 text-base-content/70">Ügyfél neve *</label>
+            <input
+              type="text"
+              id="wsClientName"
+              placeholder="pl. Kovács Péter vagy Kis Kft."
+              class="input input-sm input-bordered w-full"
+              autocomplete="off"
+              required
+            />
+            <!-- Autocomplete lista -->
+            <div id="wsPartnerSuggestions" class="hidden absolute left-0 right-0 top-full mt-1 card bg-base-100 shadow-xl border border-base-200 overflow-hidden z-50">
+              <ul id="wsPartnerList" class="menu menu-sm p-1"></ul>
+            </div>
+          </div>
+
+          <!-- Adószám (opcionális, ha cég) -->
+          <div>
+            <label class="label p-0 pb-1 text-base-content/70">Adószám (cég esetén)</label>
+            <input
+              type="text"
+              id="wsClientTaxNumber"
+              placeholder="pl. 12345678-1-42"
+              class="input input-sm input-bordered w-full font-mono"
+            />
+          </div>
+
+          <!-- Irányítószám & Város -->
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <label class="label p-0 pb-1 text-base-content/70">Irsz.</label>
+              <input type="text" id="wsClientZip" placeholder="1111" class="input input-sm input-bordered w-full font-mono" />
+            </div>
+            <div class="col-span-2">
+              <label class="label p-0 pb-1 text-base-content/70">Város</label>
+              <input type="text" id="wsClientCity" placeholder="Budapest" class="input input-sm input-bordered w-full" />
+            </div>
+          </div>
+
+          <!-- Utca, házszám -->
+          <div>
+            <label class="label p-0 pb-1 text-base-content/70">Utca, házszám</label>
+            <input type="text" id="wsClientAddress" placeholder="Kossuth Lajos u. 12." class="input input-sm input-bordered w-full" />
+          </div>
+
+          <!-- Telefon & Email -->
+          <div>
+            <label class="label p-0 pb-1 text-base-content/70">Telefonszám</label>
+            <input type="tel" id="wsClientPhone" placeholder="+36 30 123 4567" class="input input-sm input-bordered w-full" />
+          </div>
+          <div>
+            <label class="label p-0 pb-1 text-base-content/70">E-mail cím (munkalap és számla küldéshez)</label>
+            <input type="email" id="wsClientEmail" placeholder="ugyfel@ceg.hu" class="input input-sm input-bordered w-full" />
+          </div>
+        </div>
+      </div>
+
+      <!-- 2. MUNKA JELLEGE ÉS ESZKÖZ -->
+      <div class="bg-base-200/40 p-4 rounded-xl border border-base-300 space-y-3">
+        <h4 class="font-bold text-xs uppercase tracking-wider text-primary">Munka Részletei</h4>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+          <div>
+            <label class="label p-0 pb-1 text-base-content/70">Készülék / Berendezés típusa</label>
+            <input
+              type="text"
+              id="wsDeviceType"
+              placeholder="pl. Daikin 3.5 kW klíma / Ariston gázkazán / Hensel mérőhely"
+              class="input input-sm input-bordered w-full"
+            />
+          </div>
+          <div>
+            <label class="label p-0 pb-1 text-base-content/70">Elvégzett feladat rövid összefoglalása *</label>
+            <input
+              type="text"
+              id="wsDescription"
+              placeholder="pl. Éves karbantartás, gáztöltés és próbaüzem."
+              class="input input-sm input-bordered w-full"
+              required
+            />
+          </div>
+        </div>
+      </div>
+
+      <!-- 3. TÉTELEK (Munkadíj & Anyagok) -->
+      <div class="bg-base-200/40 p-4 rounded-xl border border-base-300 space-y-3">
+        <div class="flex justify-between items-center">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-primary">Tételek: Munkadíj és Beépített Anyagok</h4>
+          <button type="button" id="wsAddItemRowBtn" class="btn btn-xs btn-outline btn-primary gap-1">
+            <span>➕</span> Tétel hozzáadása
+          </button>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="table table-xs w-full">
+            <thead>
+              <tr>
+                <th class="w-1/2">Tétel neve</th>
+                <th class="w-16 text-right">Menny.</th>
+                <th class="w-16">Egység</th>
+                <th class="w-24 text-right">Egységár (Ft)</th>
+                <th class="w-24 text-right">Összesen (Ft)</th>
+                <th class="w-8"></th>
+              </tr>
+            </thead>
+            <tbody id="wsItemsTbody">
+              <!-- Dinamikus sorok JS-ből -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Összesítés -->
+        <div class="flex justify-between items-center pt-3 border-t border-base-300 text-xs font-semibold">
+          <span class="text-base-content/70">Munkalap bruttó végösszege:</span>
+          <span class="text-base font-bold text-success font-mono" id="wsTotalAmount">0 Ft</span>
+        </div>
+      </div>
+
+      <!-- 4. FOTÓK (Előtte és Utána állapot MinIO tárolással) -->
+      <div class="bg-base-200/40 p-4 rounded-xl border border-base-300 space-y-3">
+        <h4 class="font-bold text-xs uppercase tracking-wider text-primary">Helyszíni Fotók (Előtte / Utána)</h4>
+        <p class="text-[11px] text-base-content/60">
+          Készíts vagy tölts fel fotót a javítás előtti és utáni állapotról a vitás helyzetek elkerülése érdekében.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <!-- Előtte fotók -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-semibold text-warning">📸 Előtte fotók</span>
+              <label class="btn btn-xs btn-outline btn-warning gap-1 cursor-pointer">
+                <span>➕</span> Fotózás
+                <input type="file" id="wsBeforePhotoInput" accept="image/*" capture="environment" class="hidden" />
+              </label>
+            </div>
+            <div id="wsBeforePhotosGallery" class="flex flex-wrap gap-2 min-h-16 p-2 bg-base-100 rounded-lg border border-base-300 items-center">
+              <span class="text-[11px] text-base-content/40 italic p-1">Nincs feltöltött előtte fotó</span>
+            </div>
+          </div>
+
+          <!-- Utána fotók -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs">
+              <span class="font-semibold text-success">📸 Utána fotók</span>
+              <label class="btn btn-xs btn-outline btn-success gap-1 cursor-pointer">
+                <span>➕</span> Fotózás
+                <input type="file" id="wsAfterPhotoInput" accept="image/*" capture="environment" class="hidden" />
+              </label>
+            </div>
+            <div id="wsAfterPhotosGallery" class="flex flex-wrap gap-2 min-h-16 p-2 bg-base-100 rounded-lg border border-base-300 items-center">
+              <span class="text-[11px] text-base-content/40 italic p-1">Nincs feltöltött utána fotó</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 5. ÉRINTŐKÉPERNYŐS ALÁÍRÁS (HTML5 Canvas) -->
+      <div class="bg-base-200/40 p-4 rounded-xl border border-base-300 space-y-3">
+        <div class="flex justify-between items-center">
+          <h4 class="font-bold text-xs uppercase tracking-wider text-primary">Megrendelői Aláírás (Teljesítésigazolás)</h4>
+          <button type="button" id="wsClearSignatureBtn" class="btn btn-xs btn-ghost text-error gap-1">
+            <span>🔄</span> Újraírás (Törlés)
+          </button>
+        </div>
+        <p class="text-[11px] text-base-content/60">
+          Az ügyfél az ujjával vagy stylusszal írja alá a kijelzőt a munka átvételekor.
+        </p>
+
+        <!-- Canvas keret -->
+        <div class="relative bg-white rounded-xl overflow-hidden border-2 border-dashed border-base-300 shadow-inner">
+          <canvas id="wsSignatureCanvas" width="700" height="200" class="w-full h-40 cursor-crosshair touch-none"></canvas>
+          <div id="wsSignaturePlaceholder" class="absolute inset-0 pointer-events-none flex items-center justify-center text-slate-400 text-xs italic">
+            ✍️ Írd alá itt az ujjaddal a kijelzőn...
+          </div>
+        </div>
+        <p id="wsSignedAtNotice" class="hidden text-xs text-success font-medium">✓ Aláírva ekkor: <span id="wsSignedAtText"></span></p>
+      </div>
+
+      <!-- 6. HÍD: SZÁMLÁZZ.HU KIÁLLÍTÁS ELŐKÉSZÍTŐ -->
+      <div id="wsInvoiceBridgeBox" class="alert alert-info text-xs p-3 rounded-xl border border-info/30 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+        <div class="space-y-0.5">
+          <span class="font-bold text-sm">🚀 1-Kattintásos Számlázz.hu Kiállítás</span>
+          <p class="text-base-content/80 text-[11px]">
+            A munkalap tételeit és vevőadatait közvetlenül átadhatod a Számlázz.hu fiókodnak. Nincs esti gépelés!
+          </p>
+        </div>
+        <label class="label cursor-pointer justify-start items-center gap-2 p-0">
+          <input type="checkbox" id="wsLegalLiabilityCheckbox" class="checkbox checkbox-xs checkbox-primary" />
+          <span class="label-text text-[11px] font-medium">Jóváhagyom az átadást</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- MODÁL LÁBLÉC GOMBOK -->
+    <div class="modal-action border-t border-base-200 pt-3 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 shrink-0">
+      <button type="button" id="wsCancelBtn" class="btn btn-sm btn-ghost order-3 sm:order-1">Bezárás</button>
+      
+      <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto order-1 sm:order-2">
+        <button type="button" id="wsSaveDraftBtn" class="btn btn-sm btn-outline btn-primary">
+          💾 Mentés
+        </button>
+        <button type="button" id="wsIssueInvoiceBtn" class="btn btn-sm btn-secondary font-bold text-white shadow-sm" disabled>
+          🧾 Átadás a Számlázz.hu-nak
+        </button>
+      </div>
+    </div>
+  </div>
+</dialog>

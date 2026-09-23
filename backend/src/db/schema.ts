@@ -1,6 +1,6 @@
 // backend/src/db/schema.ts
 import { pgTable, text, timestamp, boolean, jsonb, integer, index } from 'drizzle-orm/pg-core';
-import type { InvoiceData } from '@szamlazo/shared';
+import type { InvoiceData, WorksheetItem } from '@szamlazo/shared';
 
 export const users = pgTable('users', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -55,7 +55,35 @@ export const payments = pgTable('payments', {
   index('idx_payments_user').on(table.userId)
 ]);
 
+export const worksheets = pgTable('worksheets', {
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+  userId: text('user_id').references(() => users.id).notNull(),
+  worksheetNumber: text('worksheet_number').notNull(),
+  clientName: text('client_name').notNull(),
+  clientTaxNumber: text('client_tax_number'),
+  clientZip: text('client_zip'),
+  clientCity: text('client_city'),
+  clientAddress: text('client_address'),
+  clientEmail: text('client_email'),
+  clientPhone: text('client_phone'),
+  deviceType: text('device_type'),
+  description: text('description').default('').notNull(),
+  items: jsonb('items').$type<WorksheetItem[]>().default([]).notNull(),
+  beforePhotos: jsonb('before_photos').$type<string[]>().default([]),
+  afterPhotos: jsonb('after_photos').$type<string[]>().default([]),
+  signatureUrl: text('signature_url'),
+  signedAt: timestamp('signed_at'),
+  status: text('status').default('draft').notNull(), // 'draft' | 'signed' | 'invoiced' | 'closed'
+  invoiceId: text('invoice_id').references(() => invoices.id),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+}, (table) => [
+  index('idx_worksheets_user_status').on(table.userId, table.status, table.createdAt)
+]);
+
 export type UserRecord = typeof users.$inferSelect;
 export type InvoiceRecord = typeof invoices.$inferSelect;
 export type AuditLogRecord = typeof auditLogs.$inferSelect;
+export type WorksheetRecord = typeof worksheets.$inferSelect;
+
 export type PaymentRecord = typeof payments.$inferSelect;

@@ -1,0 +1,17 @@
+{
+  "name": "MesterLap & Számla AI",
+  "short_name": "MesterLap",
+  "description": "Digitális Munkalap PWA szakembereknek és Számla AI asszisztens",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1e293b",
+  "theme_color": "#10b981",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

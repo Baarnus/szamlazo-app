@@ -14,6 +14,7 @@ import { invoicesRouter } from './routes/invoices.js';
 import { parseRouter } from './routes/parse.js';
 import { exportRouter } from './routes/export.js';
 import { partnersRouter } from './routes/partners.js';
+import { worksheetsRouter } from './routes/worksheets.js';
 import { createRateLimiter } from './middlewares/rate-limiter.js';
 
 // Re-export a schema-t a visszafelé kompatibilitás kedvéért
@@ -79,6 +80,7 @@ app.route('/api/szamlazz', szamlazzRouter);
 app.route('/api/invoices', invoicesRouter);
 app.route('/api/invoices/export', exportRouter);
 app.route('/api/partners', partnersRouter);
+app.route('/api/worksheets', worksheetsRouter);
 app.route('/api', parseRouter);
 
 // Globális 404 kezelő

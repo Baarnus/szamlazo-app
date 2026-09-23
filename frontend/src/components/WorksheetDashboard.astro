@@ -1,0 +1,99 @@
+---
+// frontend/src/components/WorksheetDashboard.astro
+// Terepi MesterMunkalap PWA Dashboard: munkalapok listája, szűrés, keresés és gyorsgombok.
+---
+<section id="worksheetSection" class="space-y-6 hidden">
+  <!-- FEJLÉC ÉS GYORS AKCIÓK -->
+  <div class="card bg-base-100 shadow-xl border border-base-200 p-4 md:p-6">
+    <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+      <div>
+        <div class="flex items-center gap-2">
+          <span class="text-2xl">🛠️</span>
+          <h2 class="text-xl md:text-2xl font-bold text-primary tracking-tight">MesterMunkalapok</h2>
+          <span class="badge badge-primary badge-outline text-xs">PWA Terepi Mód</span>
+        </div>
+        <p class="text-xs text-base-content/70 mt-1">
+          Digitális teljesítésigazolások, helyszíni fotók és érintős ügyfélaláírás — 1-kattintásos Számlázz.hu kiállítással.
+        </p>
+      </div>
+
+      <div class="flex items-center gap-2 w-full md:w-auto">
+        <button
+          type="button"
+          id="openNewWorksheetBtn"
+          class="btn btn-primary btn-sm md:btn-md gap-2 w-full md:w-auto shadow-md font-bold text-white hover:scale-[1.02] active:scale-[0.98] transition-all"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 3a1 1 0 011 1v5h5a1 1 0 110 2h-5v5a1 1 0 11-2 0v-5H4a1 1 0 110-2h5V4a1 1 0 011-1z" clip-rule="evenodd" />
+          </svg>
+          Új Munkalap Készítése
+        </button>
+      </div>
+    </div>
+
+    <!-- STATISZTIKAI MINI SÁV -->
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 md:gap-4 mt-6 pt-4 border-t border-base-200 text-xs">
+      <div class="bg-base-200/50 p-2.5 rounded-xl border border-base-300">
+        <span class="text-base-content/60">Összes munkalap</span>
+        <p id="wsStatTotal" class="text-lg font-bold text-base-content">0</p>
+      </div>
+      <div class="bg-warning/10 p-2.5 rounded-xl border border-warning/20">
+        <span class="text-warning font-medium">Aláírásra vár</span>
+        <p id="wsStatDraft" class="text-lg font-bold text-warning">0</p>
+      </div>
+      <div class="bg-success/10 p-2.5 rounded-xl border border-success/20">
+        <span class="text-success font-medium">Aláírva</span>
+        <p id="wsStatSigned" class="text-lg font-bold text-success">0</p>
+      </div>
+      <div class="bg-info/10 p-2.5 rounded-xl border border-info/20">
+        <span class="text-info font-medium">Leszámlázva</span>
+        <p id="wsStatInvoiced" class="text-lg font-bold text-info">0</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- SZŰRŐK ÉS KERESÉS -->
+  <div class="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-3">
+    <!-- Státusz szűrő gombok -->
+    <div class="join bg-base-100 p-1 rounded-xl border border-base-200 shadow-sm overflow-x-auto">
+      <button type="button" class="btn btn-xs sm:btn-sm join-item ws-filter-btn btn-active" data-status="all">Mind</button>
+      <button type="button" class="btn btn-xs sm:btn-sm join-item ws-filter-btn" data-status="draft">Piszkozat</button>
+      <button type="button" class="btn btn-xs sm:btn-sm join-item ws-filter-btn" data-status="signed">Aláírva</button>
+      <button type="button" class="btn btn-xs sm:btn-sm join-item ws-filter-btn" data-status="invoiced">Leszámlázva</button>
+    </div>
+
+    <!-- Keresőmező -->
+    <div class="relative w-full sm:w-72">
+      <input
+        type="text"
+        id="wsSearchInput"
+        placeholder="Keresés ügyfél, cím, munka szerint..."
+        class="input input-sm input-bordered w-full pr-8 text-xs bg-base-100"
+      />
+      <span class="absolute right-2.5 top-2 text-base-content/40 text-xs">🔍</span>
+    </div>
+  </div>
+
+  <!-- MUNKALAPOK LISTÁJA (KÁRTYÁK) -->
+  <div id="worksheetCardsGrid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <!-- JavaScript tölti fel a kártyákkal -->
+  </div>
+
+  <!-- ÜRES ÁLLAPOT -->
+  <div id="worksheetEmptyState" class="hidden card bg-base-100 border border-dashed border-base-300 p-8 text-center space-y-3">
+    <div class="text-4xl">📋</div>
+    <h3 class="font-bold text-base text-base-content">Még nincs rögzített munkalapod</h3>
+    <p class="text-xs text-base-content/60 max-w-md mx-auto">
+      Hozz létre egy új munkalapot a fenti gombra kattintva, vagy használd a hangalapú diktálást a tételek gyors beviteléhez!
+    </p>
+    <div>
+      <button
+        type="button"
+        class="btn btn-outline btn-primary btn-sm font-semibold"
+        onclick="document.getElementById('openNewWorksheetBtn')?.click()"
+      >
+        ➕ Első Munkalap Létrehozása
+      </button>
+    </div>
+  </div>
+</section>

@@ -8,6 +8,8 @@ import { loadCompanySettings } from './settings.js';
 export function updateUserUI(user: UserState | null): void {
   const guestLandingView = document.getElementById("guestLandingView");
   const appDashboardView = document.getElementById("appDashboardView");
+  const worksheetSection = document.getElementById("worksheetSection");
+  const appModeSwitcher = document.getElementById("appModeSwitcher");
   const guestNavAction = document.getElementById("guestNavAction");
   const userProfileBar = document.getElementById("userProfileBar");
   const userCreditsDisplay = document.getElementById("userCreditsDisplay");
@@ -16,7 +18,10 @@ export function updateUserUI(user: UserState | null): void {
 
   if (user) {
     guestLandingView?.classList.add("hidden");
-    appDashboardView?.classList.remove("hidden");
+    appModeSwitcher?.classList.remove("hidden");
+    // Alapértelmezett terepi fül a MesterMunkalap
+    worksheetSection?.classList.remove("hidden");
+    appDashboardView?.classList.add("hidden");
     guestNavAction?.classList.add("hidden");
     userProfileBar?.classList.remove("hidden");
     userProfileBar?.classList.add("flex");
@@ -26,6 +31,8 @@ export function updateUserUI(user: UserState | null): void {
     }
   } else {
     guestLandingView?.classList.remove("hidden");
+    appModeSwitcher?.classList.add("hidden");
+    worksheetSection?.classList.add("hidden");
     appDashboardView?.classList.add("hidden");
     guestNavAction?.classList.remove("hidden");
     userProfileBar?.classList.add("hidden");

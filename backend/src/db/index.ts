@@ -91,15 +91,45 @@ export async function initDatabase() {
       );
     `;
 
-    // 5. Indexek létrehozása a lekérdezések gyorsításához
+    // 5. Worksheets (MesterMunkalap) tábla létrehozása
+    await client`
+      CREATE TABLE IF NOT EXISTS worksheets (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL REFERENCES users(id),
+        worksheet_number TEXT NOT NULL,
+        client_name TEXT NOT NULL,
+        client_tax_number TEXT,
+        client_zip TEXT,
+        client_city TEXT,
+        client_address TEXT,
+        client_email TEXT,
+        client_phone TEXT,
+        device_type TEXT,
+        description TEXT NOT NULL DEFAULT '',
+        items JSONB NOT NULL DEFAULT '[]'::jsonb,
+        before_photos JSONB NOT NULL DEFAULT '[]'::jsonb,
+        after_photos JSONB NOT NULL DEFAULT '[]'::jsonb,
+        signature_url TEXT,
+        signed_at TIMESTAMP,
+        status TEXT NOT NULL DEFAULT 'draft',
+        invoice_id TEXT REFERENCES invoices(id),
+        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+      );
+    `;
+
+    // 6. Indexek létrehozása a lekérdezések gyorsításához
     await client`
       CREATE INDEX IF NOT EXISTS idx_invoices_user_active ON invoices (user_id, is_deleted, created_at DESC);
     `;
     await client`
       CREATE INDEX IF NOT EXISTS idx_payments_user ON payments (user_id);
     `;
+    await client`
+      CREATE INDEX IF NOT EXISTS idx_worksheets_user_status ON worksheets (user_id, status, created_at DESC);
+    `;
 
-    console.log('✅ [PostgreSQL] Összes tábla és index ellenőrizve / inicializálva (users, invoices, audit_logs, payments).');
+    console.log('✅ [PostgreSQL] Összes tábla és index ellenőrizve / inicializálva (users, invoices, audit_logs, payments, worksheets).');
   } catch (err: any) {
     console.error('❌ [PostgreSQL] Adatbázis inicializálási hiba:', err.message);
   }

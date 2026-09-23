@@ -110,3 +110,44 @@ export interface BatchParseInvoiceResponse {
   results: SingleInvoiceResult[];
   error?: string;
 }
+
+// ==========================================
+// MesterMunkalap PWA Típusok és Sémák
+// ==========================================
+export const WorksheetItemSchema = z.object({
+  name: z.string().min(1, 'Tétel megnevezése kötelező'),
+  quantity: z.coerce.number().default(1),
+  unit: z.string().default('db'),
+  unitPrice: z.coerce.number().default(0),
+  totalPrice: z.coerce.number().default(0),
+});
+
+export type WorksheetItem = z.infer<typeof WorksheetItemSchema>;
+
+export type WorksheetStatus = 'draft' | 'signed' | 'invoiced' | 'closed';
+
+export const WorksheetSchema = z.object({
+  id: z.string().optional(),
+  userId: z.string().optional(),
+  worksheetNumber: z.string().optional(),
+  clientName: z.string().min(1, 'Ügyfél neve kötelező'),
+  clientTaxNumber: z.string().nullable().optional(),
+  clientZip: z.string().nullable().optional(),
+  clientCity: z.string().nullable().optional(),
+  clientAddress: z.string().nullable().optional(),
+  clientEmail: z.string().nullable().optional(),
+  clientPhone: z.string().nullable().optional(),
+  deviceType: z.string().nullable().optional(),
+  description: z.string().default(''),
+  items: z.array(WorksheetItemSchema).default([]),
+  beforePhotos: z.array(z.string()).default([]),
+  afterPhotos: z.array(z.string()).default([]),
+  signatureUrl: z.string().nullable().optional(),
+  signedAt: z.string().nullable().optional(),
+  status: z.enum(['draft', 'signed', 'invoiced', 'closed']).default('draft'),
+  invoiceId: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+
+export type Worksheet = z.infer<typeof WorksheetSchema>;

@@ -3,6 +3,8 @@ import "../styles/global.css";
 import Navbar from "../components/Navbar.astro";
 import LandingView from "../components/LandingView.astro";
 import Dashboard from "../components/Dashboard.astro";
+import WorksheetDashboard from "../components/WorksheetDashboard.astro";
+import WorksheetModal from "../components/modals/WorksheetModal.astro";
 import AuthModal from "../components/modals/AuthModal.astro";
 import BillingModal from "../components/modals/BillingModal.astro";
 import SettingsModal from "../components/modals/SettingsModal.astro";
@@ -16,6 +18,12 @@ const enableUmami = Boolean(umamiUrl && umamiWebsiteId && import.meta.env.PUBLIC
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    
+    <!-- PWA és Mobil ikonok -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#1d232a" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
     
     <!-- Google Consent Mode v2 Default Setup -->
     <script is:inline>
@@ -40,12 +48,38 @@ const enableUmami = Boolean(umamiUrl && umamiWebsiteId && import.meta.env.PUBLIC
         src={umamiUrl}
         data-website-id={umamiWebsiteId}></script>
     )}
-    <title>Számla AI - AI Számlagenerátor & Könyvelési OCR</title>
+    <title>MesterMunkalap & Számla AI - Terepi Munkalapok & Könyvelői Számlázás</title>
   </head>
   <body class="min-h-screen bg-base-300 p-3 md:p-8 font-sans">
     <div class="max-w-5xl mx-auto space-y-6">
       <Navbar />
+
+      <!-- MÓDVÁLASZTÓ TABOK (Csak bejelentkezett állapotban látható) -->
+      <div id="appModeSwitcher" class="hidden bg-base-100 p-1.5 rounded-2xl border border-base-200 shadow-md">
+        <div class="grid grid-cols-2 gap-1.5">
+          <button
+            type="button"
+            id="modeTabWorksheets"
+            class="btn btn-sm btn-primary font-bold gap-2 transition-all shadow-sm"
+          >
+            <span>🛠️</span>
+            <span>MesterMunkalapok</span>
+            <span class="badge badge-xs badge-neutral hidden xs:inline">PWA</span>
+          </button>
+          <button
+            type="button"
+            id="modeTabInvoices"
+            class="btn btn-sm btn-ghost font-semibold gap-2 transition-all text-base-content/80 hover:text-base-content"
+          >
+            <span>🧾</span>
+            <span>Költségbizonylatok</span>
+            <span class="badge badge-xs badge-neutral hidden xs:inline">OCR</span>
+          </button>
+        </div>
+      </div>
+
       <LandingView />
+      <WorksheetDashboard />
       <Dashboard />
     </div>
 
@@ -56,11 +90,12 @@ const enableUmami = Boolean(umamiUrl && umamiWebsiteId && import.meta.env.PUBLIC
         <a href="/adatvedelem" class="link link-hover text-sm">Adatvédelmi Tájékoztató (GDPR)</a>
       </div>
       <div>
-        <p class="text-xs opacity-70">Copyright © 2026 - Minden jog fenntartva | Számla AI</p>
+        <p class="text-xs opacity-70">Copyright © 2026 - Minden jog fenntartva | MesterMunkalap & Számla AI</p>
       </div>
     </footer>
 
     <!-- MODÁLOK -->
+    <WorksheetModal />
     <BillingModal />
     <AuthModal />
     <SettingsModal />
